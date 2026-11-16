@@ -788,6 +788,9 @@ github.com/nutanix-cloud-native/prism-go-client/environment/types
 github.com/nutanix-cloud-native/prism-go-client/internal
 github.com/nutanix-cloud-native/prism-go-client/v3
 github.com/nutanix-cloud-native/prism-go-client/v3/models
+# github.com/oapi-codegen/nullable v1.1.0
+## explicit; go 1.20
+github.com/oapi-codegen/nullable
 # github.com/oapi-codegen/runtime v1.8.0
 ## explicit; go 1.24.0
 github.com/oapi-codegen/runtime
@@ -1042,7 +1045,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261118164620-fdaacb0f011c
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261118164620-fdaacb0f011c => github.com/klaskosk/eco-goinfra v0.0.0-20261119161638-705cb3586232
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1106,6 +1109,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/fields
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms/v2
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
@@ -2347,3 +2351,4 @@ sigs.k8s.io/yaml/kyaml
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 # k8s.io/client-go => k8s.io/client-go v0.37.2
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
+# github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261119161638-705cb3586232

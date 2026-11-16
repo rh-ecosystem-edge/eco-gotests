@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
+# Synced with oran-o2ims commit cfec024dff6e61a9e0b92efd464ce5bd4be06f7f
 #
 # Copyright (c) 2024 Red Hat, Inc.
 #
@@ -19,13 +19,16 @@ info:
   title: O2IMS Infrastructure Inventory API
   version: 2.0.0
   description: |
-    API for O2IMS Infrastructure Inventory
+    API for O2IMS Infrastructure Inventory.
+
+    All responses carry a `Version: 2.0.0` HTTP response header, set by
+    the server's path-scoped middleware.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 externalDocs:
-  description: O-RAN O2ims Interface Specification 11.0 (2025.11.28)
+  description: O-RAN O2ims Interface Specification 13.00 (2026-07-10) (O-RAN.WG6.TS.O2IMS-INTERFACE-R005-v13.00)
   url: https://specifications.o-ran.org/specifications
 
 servers:
@@ -1635,7 +1638,7 @@ components:
       description: |
         Information about a location where O-Cloud Sites can be available.
 
-        NOTE: Per O-RAN.WG6.TS.O2IMS-INTERFACE-R005-v11.00 3.2.6.2.16, at least one of 'coordinate', 
+        NOTE: Per O-RAN.WG6.TS.O2IMS-INTERFACE-R005-v13.00 3.2.6.2.16, at least one of 'coordinate',
         'civicAddress', or 'address' shall be provided when creating location data.
       type: object
       properties:
