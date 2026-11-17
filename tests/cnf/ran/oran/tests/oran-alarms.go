@@ -126,7 +126,9 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		)
 		Expect(err).ToNot(HaveOccurred(), "Failed to receive NEW notification with the expected object reference")
 
-		By("patching the subscription to deliver only NEW notifications")
+		// The v2 eventFilter is exclusion-based: an event whose notificationEventType equals the filter is not
+		// delivered, so setting it to NEW suppresses NEW notifications instead of selecting them.
+		By("patching the subscription to exclude NEW notifications")
 
 		patch := oranapi.AlarmSubscriptionUpdateV2{}
 		patch.EventFilter.Set(oranapi.AlarmSubscriptionUpdateFilterV2NEW)
@@ -154,7 +156,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		Expect(err).ToNot(HaveOccurred(), "Filtered alarm was not persisted")
 		Expect(alarm.ObjectClass).To(Equal("oran.o2ims.cluster.NodeCluster"), "Unexpected alarm object class")
 
-		filteredAlarms, err := alarmsV2Client.ListAlarms(filter.Equals("resourceID", spoke1ClusterID))
+		filteredAlarms, err := alarmsV2Client.ListAlarms(filter.Equals("objectId", spoke1ClusterID))
 		Expect(err).ToNot(HaveOccurred(), "Failed to filter alarms by resource")
 		Expect(slices.ContainsFunc(filteredAlarms, func(record oranapi.AlarmEventRecordV2) bool {
 			return record.Extensions["tracker"] == tracker && record.ObjectClass == "oran.o2ims.cluster.NodeCluster"
@@ -241,10 +243,10 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 			_, err = helper.WaitForAlarmV2ToExist(alarmsV2Client, map[string]string{"tracker": majorTracker}, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for major test alarm to exist")
 
-			By("filtering alarms by major severity and resourceID")
+			By("filtering alarms by major severity and objectId")
 
 			severityFilter := filter.Equals("perceivedSeverity", strconv.Itoa(int(oranapi.PerceivedSeverityV2MAJOR)))
-			resourceFilter := filter.Equals("resourceID", spoke1ClusterID)
+			resourceFilter := filter.Equals("objectId", spoke1ClusterID)
 			resourceAlarms, err := alarmsV2Client.ListAlarms(resourceFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to filter alarms by resource")
 			Expect(slices.ContainsFunc(resourceAlarms, func(alarm oranapi.AlarmEventRecordV2) bool {
@@ -738,7 +740,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 			Expect(err).ToNot(HaveOccurred(), "Failed to receive all notifications")
 			Expect(sentAlerts).To(BeEmpty(), "All alerts should have been received")
 
-			persisted, err := alarmsV2Client.ListAlarms(filter.Equals("resourceID", spoke1ClusterID))
+			persisted, err := alarmsV2Client.ListAlarms(filter.Equals("objectId", spoke1ClusterID))
 			Expect(err).ToNot(HaveOccurred(), "Failed to list alarms for resource")
 
 			for _, alarm := range persisted {
@@ -758,7 +760,6 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID,
 			Callback:               mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID.String()),
-			Filter:                 ptr.To(oranapi.AlarmSubscriptionFilterNEW),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test subscription")
 
