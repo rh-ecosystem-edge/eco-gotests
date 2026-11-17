@@ -2,11 +2,11 @@ package tsparams
 
 import (
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
-	cguv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/openshift-kni/k8sreporter"
 	imageregistryv1 "github.com/openshift/api/imageregistry/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdoperator"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
+	cguv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/cgu/clustergroupupgrades/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/clusterv1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/kacv1"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"

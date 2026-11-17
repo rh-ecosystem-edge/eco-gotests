@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/openshift-kni/lifecycle-agent/api/seedreconfig"
 	"github.com/openshift-kni/lifecycle-agent/internal/common"
@@ -16,7 +17,18 @@ const (
 	pwHashFile    = "kubeadmin-password-hash.txt"
 )
 
+// SeedReconfigurationKubeconfigRetentionToCryptoDir requires a complete
+// kubeconfig-retention set and replaces the managed crypto directory before
+// writing the current values. Both IBU and IBI are expected to provide one, so
+// missing or partial input is rejected before recert can consume stale or empty
+// files from an earlier attempt.
 func SeedReconfigurationKubeconfigRetentionToCryptoDir(cryptoDir string, kubeconfigCryptoRetention *seedreconfig.KubeConfigCryptoRetention) error {
+	if err := os.RemoveAll(cryptoDir); err != nil {
+		return fmt.Errorf("error removing existing crypto directory %s: %w", cryptoDir, err)
+	}
+	if err := validateKubeconfigCryptoRetention(kubeconfigCryptoRetention); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(cryptoDir, 0700); err != nil {
 		return fmt.Errorf("error creating %s: %w", cryptoDir, err)
 	}
@@ -46,6 +58,18 @@ func SeedReconfigurationKubeconfigRetentionToCryptoDir(cryptoDir string, kubecon
 		return fmt.Errorf("error writing ingresskey-ingress-operator.key: %w", err)
 	}
 
+	return nil
+}
+
+// validateKubeconfigCryptoRetention rejects partial retention before recert is
+// configured to reuse the supplied keys.
+func validateKubeconfigCryptoRetention(retention *seedreconfig.KubeConfigCryptoRetention) error {
+	if retention == nil {
+		return fmt.Errorf("crypto retention is missing")
+	}
+	if missing := retention.MissingPEMFields(); len(missing) > 0 {
+		return fmt.Errorf("%s is missing from kubeconfig crypto retention", strings.Join(missing, ", "))
+	}
 	return nil
 }
 

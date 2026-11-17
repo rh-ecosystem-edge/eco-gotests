@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/imagebasedgroupupgrades/v1alpha1"
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedgroupupgrades/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -205,6 +205,7 @@ func (builder *IbguBuilder) WithOadpContent(name string, namespace string) *Ibgu
 		Namespace: namespace,
 	}
 
+	//nolint:staticcheck
 	builder.Definition.Spec.IBUSpec.OADPContent = append(builder.Definition.Spec.IBUSpec.OADPContent, oadpContent)
 
 	return builder

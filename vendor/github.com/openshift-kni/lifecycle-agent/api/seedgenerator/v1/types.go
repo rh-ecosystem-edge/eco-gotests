@@ -73,7 +73,3 @@ type SeedGeneratorList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SeedGenerator `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&SeedGenerator{}, &SeedGeneratorList{})
-}

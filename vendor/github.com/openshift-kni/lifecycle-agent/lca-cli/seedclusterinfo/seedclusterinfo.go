@@ -103,6 +103,16 @@ type SeedClusterInfo struct {
 	// For single stack ocp clusters, this will be a single subnet.
 	// For dual-stack ocp clusters, this will be a list of two subnets.
 	MachineNetworks []string `json:"machine_networks,omitempty"`
+
+	// SeedCreationTime is the RFC3339 UTC timestamp at which this seed image was
+	// created. It is populated at seed-build time and is the lower bound (and, with the
+	// configurable maxSeedAge, the upper bound) the post-pivot clock gate uses to decide
+	// whether the system clock is plausible before recert mints certificates offline.
+	// It is additive and omitempty: seeds built before this field existed carry no value,
+	// and the clock gate detects that absence (field presence) to fall back to a degraded,
+	// lower-bound-only compatibility check. Adding this field does not require a
+	// SeedFormatVersion bump.
+	SeedCreationTime string `json:"seed_creation_time,omitempty"`
 }
 
 type AdditionalTrustBundle struct {
@@ -121,6 +131,7 @@ func NewFromClusterInfo(clusterInfo *utils.ClusterInfo,
 	additionalTrustBundle *AdditionalTrustBundle,
 	containerStorageMountpointTarget string,
 	ingressCertificateCN string,
+	seedCreationTime string,
 ) *SeedClusterInfo {
 	return &SeedClusterInfo{
 		SeedClusterOCPVersion:    clusterInfo.OCPVersion,
@@ -139,6 +150,8 @@ func NewFromClusterInfo(clusterInfo *utils.ClusterInfo,
 		ContainerStorageMountpointTarget: containerStorageMountpointTarget,
 
 		IngressCertificateCN: ingressCertificateCN,
+
+		SeedCreationTime: seedCreationTime,
 	}
 }
 

@@ -106,7 +106,7 @@ var _ = Describe(
 			By("Ensure that imagebasedupgrade values are empty")
 
 			ibu.Definition.Spec.ExtraManifests = []lcav1.ConfigMapRef{}
-			ibu.Definition.Spec.OADPContent = []lcav1.ConfigMapRef{}
+			ibu.Definition.Spec.OADPContent = []lcav1.ConfigMapRef{} //nolint:staticcheck
 			ibu, err := ibu.Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu resource with empty values")
 

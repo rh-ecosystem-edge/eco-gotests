@@ -266,7 +266,3 @@ type IPPhase struct {
 	// CompletionTime A timestamp indicating the phase completed successfully
 	CompletionTime metav1.Time `json:"completionTime,omitempty"`
 }
-
-func init() {
-	SchemeBuilder.Register(&IPConfig{}, &IPConfigList{})
-}
