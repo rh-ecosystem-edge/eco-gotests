@@ -2,7 +2,7 @@ package tsparams
 
 import (
 	"github.com/openshift-kni/k8sreporter"
-	ipcv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ipchange/api/ipconfig/v1"
+	ipcv1 "github.com/openshift-kni/lifecycle-agent/api/ipconfig/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )

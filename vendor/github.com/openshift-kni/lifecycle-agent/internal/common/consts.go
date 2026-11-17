@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	ibuv1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 )
 
 // Common constants mainly used by packages in lca-cli
@@ -118,7 +120,8 @@ const (
 	ImageCleanupDisabledValue = "Disabled"
 
 	// DefaultOperatorNamespace is used when MY_POD_NAMESPACE is unset (e.g. local dev).
-	DefaultOperatorNamespace = "openshift-lifecycle-agent"
+	// It aliases the exported IBU API constant so both stay in sync.
+	DefaultOperatorNamespace = ibuv1.DefaultNamespace
 	// OperatorDeploymentName is the OLM-managed operator Deployment name.
 	OperatorDeploymentName = "lifecycle-agent-controller-manager"
 	// OperatorNamespaceEnvVar is set on the operator Deployment via downward API.
@@ -139,14 +142,21 @@ const (
 	// Env var to configure auto rollback for post-reboot config failure
 	IBUPostRebootConfigAutoRollbackOnFailureEnv = "LCA_IBU_AUTO_ROLLBACK_ON_CONFIG_FAILURE"
 
-	// Bump this every time the seed format changes in a backwards incompatible way
-	SeedFormatVersion  = 4
-	SeedFormatOCILabel = "com.openshift.lifecycle-agent.seed_format_version"
+	// SeedFormatVersion and SeedFormatOCILabel are re-exported from the public API
+	// package, which is the single source of truth (a hub consumer imports them
+	// from there). Bump SeedFormatVersion in api/imagebasedupgrade/v1 every time
+	// the seed format changes in a backwards incompatible way.
+	SeedFormatVersion  = ibuv1.SeedFormatVersion
+	SeedFormatOCILabel = ibuv1.SeedFormatOCILabel
 
 	SeedClusterInfoOCILabel = "com.openshift.lifecycle-agent.seed_cluster_info"
 
-	PullSecretName           = "pull-secret"
-	PullSecretEmptyData      = "{\"auths\":{\"registry.connect.redhat.com\":{\"username\":\"empty\",\"password\":\"empty\",\"auth\":\"ZW1wdHk6ZW1wdHk=\",\"email\":\"\"}}}" //nolint:gosec
+	PullSecretName      = "pull-secret"
+	PullSecretEmptyData = "{\"auths\":{\"registry.connect.redhat.com\":{\"username\":\"empty\",\"password\":\"empty\",\"auth\":\"ZW1wdHk6ZW1wdHk=\",\"email\":\"\"}}}" //nolint:gosec
+	// IBIEmptyPullSecret is a truly empty authfile used for the disconnected IBI prepare
+	// direct-import path, which needs no credentials. It is deliberately distinct from
+	// PullSecretEmptyData, which embeds a registry.connect.redhat.com credential.
+	IBIEmptyPullSecret       = "{\"auths\":{}}" //nolint:gosec
 	OpenshiftConfigNamespace = "openshift-config"
 
 	NMConnectionFolder = "/etc/NetworkManager/system-connections"
@@ -157,7 +167,97 @@ const (
 
 	IBIWorkspace = "var/tmp"
 
+	// LocalImagesFSLabel is the filesystem label of the USB "p2" partition that
+	// carries the on-media OCI image layout for a disconnected IBI prepare. The
+	// prepare phase discovers the partition by this label and mounts it read-only
+	// at the configured LocalImagesPath.
+	LocalImagesFSLabel = "ibi-images"
+
+	// LocalImagesMountPath is the on-node mount point create-usb records as the
+	// embedded IBIPrepareConfig.LocalImagesPath and that the prepare phase mounts the
+	// p2 (ibi-images) partition at. It is the cross-story contract between create-usb's
+	// embedded-config rendering and the prepare mount stages (CNF-27161/CNF-27162);
+	// both sides must use this constant so the path never diverges. /mnt resolves
+	// to /var/mnt in the RHCOS live environment; installing the target root at
+	// /mnt would hide any USB mount beneath it. Keep this mount under /run.
+	LocalImagesMountPath = "/run/ibi-images"
+
+	// LocalImagesLCABinaryPath is where create-usb stages the exact shipping lca-cli binary
+	// on the p2 (ibi-images) partition, mounted at LocalImagesMountPath on the node. The
+	// live-ISO embedded ignition's lca-ibi.service execs the binary from this path; the
+	// media-assembly wiring (CNF-27171) copies the extracted binary here. The binary is
+	// staged on p2 rather than embedded in the ISO ignition because it is far larger
+	// (~90 MB uncompressed) than the fixed RHCOS ISO ignition embed area (~256 KB), which
+	// the embed would overflow. Kept next to LocalImagesMountPath so the unit's exec path
+	// and the staged file never diverge.
+	LocalImagesLCABinaryPath = LocalImagesMountPath + "/lca-cli"
+
+	// LocalImagesStorePath is where create-usb stages the read-only containers/storage durability
+	// store on the p2 (ibi-images) partition for self-contained media, mounted at
+	// LocalImagesMountPath on the node. It is the path the prepare/persist stages
+	// (CNF-27165) read the store from once p2 is mounted; both sides must use this constant so the
+	// path never diverges.
+	LocalImagesStorePath = LocalImagesMountPath + "/" + LocalImagesStoreDirName
+
+	// LocalImagesStoreDirName is the directory name, relative to the p2 (ibi-images) mount point,
+	// of the read-only containers/storage durability store create-usb stages for self-contained
+	// media. The prepare/persist stage (CNF-27165) reads the store from this subdirectory of the
+	// configured LocalImagesPath.
+	LocalImagesStoreDirName = "store"
+
+	// IBIStatusFSLabel is the filesystem label of the writable USB "p4" partition
+	// that records per-phase machine-readable results for a USB-based IBI prepare.
+	// The prepare phase discovers the partition by this label, mounts it read-write,
+	// writes the result file at its root, and writes a diagnostic log bundle under
+	// the logs directory. The partition itself (empty, writable, ext4, labelled) is
+	// created by create-usb (CNF-28670); this story consumes it.
+	IBIStatusFSLabel = "ibi-status"
+
+	// IBIStatusMountPath is the mount point for the writable ibi-status (p4)
+	// partition during a disconnected IBI prepare.
+	// /mnt resolves to /var/mnt on the live ISO. The target root is mounted there
+	// during preparation, so the result partition must live outside that tree.
+	IBIStatusMountPath = "/run/ibi-status"
+
+	// PrepareResultFileName is the machine-readable per-phase result file written at
+	// the root of the ibi-status (p4) partition on both the success and failure paths.
+	PrepareResultFileName = "prepare.json"
+
+	// ReconfigureResultFileName is the machine-readable per-phase result file written at
+	// the root of the ibi-status (p4) partition by the post-pivot reconfigure phase. The
+	// pre-recert clock gate writes it on the failure path (an implausible clock halts the
+	// node before recert runs); the reconfigure result-writer (CNF-27173) owns the final
+	// success record.
+	ReconfigureResultFileName = "reconfigure.json"
+
+	// IBIStatusLogsDir is the directory, relative to the ibi-status (p4) root, under
+	// which the compact diagnostic log bundle is written.
+	IBIStatusLogsDir = "logs"
+
 	ContainerStoragePath = "/var/lib/containers"
+
+	// RODurabilityStoreDirName is the directory name under /var/lib where self-contained prepare
+	// persists the read-only store copied from the media. Keep it outside ContainerStoragePath:
+	// /var/lib/containers may be a separate mount that would hide a store copied into the stateroot.
+	RODurabilityStoreDirName = "lca-ro-store"
+
+	// RODurabilityStorePath is the post-pivot absolute path of the persisted read-only additional
+	// image store. It is the value the CRI-O drop-in and LCA Podman command register (not the
+	// prepare-time /mnt path, not the USB mount), so CRI-O finds the store after pivot.
+	RODurabilityStorePath = "/var/lib/" + RODurabilityStoreDirName
+
+	// CrioConfigDropInDir is CRI-O's drop-in config directory. OpenShift and customers already
+	// use this directory for CRI-O-specific configuration, and unlike the older host Podman
+	// storage.conf.d loader, CRI-O reads it on the affected RHCOS build.
+	CrioConfigDropInDir = "/etc/crio/crio.conf.d"
+
+	// RODurabilityCrioDropInName is the CRI-O drop-in filename the self-contained prepare
+	// writes to register the persisted read-only additional image store.
+	RODurabilityCrioDropInName = "99-lca-ro-store.conf"
+
+	// RODurabilityCrioDropInPath is the absolute path of the CRI-O drop-in that registers
+	// the persisted read-only additional image store.
+	RODurabilityCrioDropInPath = CrioConfigDropInDir + "/" + RODurabilityCrioDropInName
 
 	DnsmasqOverrides = "/etc/default/sno_dnsmasq_configuration_overrides"
 

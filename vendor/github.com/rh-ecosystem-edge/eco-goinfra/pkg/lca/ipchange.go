@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	lcaipcv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ipchange/api/ipconfig/v1"
+	lcaipcv1 "github.com/openshift-kni/lifecycle-agent/api/ipconfig/v1"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"

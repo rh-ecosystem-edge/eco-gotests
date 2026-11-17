@@ -34,9 +34,9 @@ require (
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20261103102427-4719031e11cd
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
-	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261105110240-c1eb317ad72e // release-5.0
+	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261116192818-41f47e14d63b // main
 	github.com/openshift-kni/k8sreporter v1.1.0
-	github.com/openshift-kni/lifecycle-agent v0.0.0-20261105164035-5d711fea4f14 // release-5.0
+	github.com/openshift-kni/lifecycle-agent v0.0.0-20261116153159-e6c81fe3272d // main
 	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20261105105914-b539a7601cd3 // release-5.0
 	github.com/openshift-kni/oran-o2ims v0.0.0-20260830032435-b07f1e92f54d // release-5.0, aligned with k8s v0.36
 	github.com/openshift/api v0.0.1
@@ -45,14 +45,14 @@ require (
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20261012224409-9e8095860b2d // release-5.0
 	github.com/openshift/installer v0.0.0-00010101000000-000000000000
 	github.com/openshift/local-storage-operator v0.0.0-20261002135716-3e6582a04c6b // release-5.0
-	github.com/operator-framework/api v0.45.0 // aligned with k8s v0.36
+	github.com/operator-framework/api v0.46.0 // aligned with k8s v0.37
 	github.com/povsister/scp v0.0.0-20250701154629-777cf82de5df
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.1 // chosen to align with k8s v0.36
 	github.com/prometheus/alertmanager v0.34.2
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v1.20.99
 	github.com/redhat-cne/sdk-go v1.23.6
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261116195101-d170ec772903
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261117211758-191c29e651f1
 	github.com/stmcginnis/gofish v0.27.0
 	github.com/stretchr/testify v1.12.1
 	github.com/vmware-tanzu/velero v1.18.4
@@ -64,18 +64,18 @@ require (
 	gopkg.in/k8snetworkplumbingwg/multus-cni.v4 v4.3.1 // aligned with k8s v0.36
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.5
-	k8s.io/apiextensions-apiserver v0.36.5
-	k8s.io/apimachinery v0.36.5
+	k8s.io/api v0.37.2
+	k8s.io/apiextensions-apiserver v0.37.2
+	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kubelet v0.36.5
+	k8s.io/kubelet v0.37.2
 	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
 	open-cluster-management.io/api v1.4.0
 	open-cluster-management.io/config-policy-controller v0.20.1
 	open-cluster-management.io/governance-policy-propagator v0.20.1
 	open-cluster-management.io/multicloud-operators-subscription v0.16.0
-	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/controller-runtime v0.25.2
 )
 
 require (
@@ -86,7 +86,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/PaesslerAG/gval v1.0.0 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
-	github.com/ProtonMail/go-crypto v1.4.0 // indirect
+	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.47.0 // indirect
@@ -107,7 +107,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/coreos/vcontext v0.0.0-20231102161604-685dc7299dc5 // indirect
-	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
@@ -120,7 +120,7 @@ require (
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.2 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/analysis v1.0.1 // indirect
@@ -148,7 +148,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
-	github.com/google/pprof v0.0.0-20260903180319-d6c3cb2f37ec // indirect
+	github.com/google/pprof v0.0.0-20260906184651-6331bc6350fe // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/grafana/regexp v0.0.0-20250905093917-f7b3be9d1853 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -184,7 +184,7 @@ require (
 	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
-	github.com/moby/sys/user v0.4.0 // indirect
+	github.com/moby/sys/user v0.4.1 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
@@ -196,7 +196,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runtime-spec v1.2.1 // indirect
+	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/openshift/cluster-logging-operator/api/observability v0.0.0-20261105045812-9b9d58ba71cd // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/openshift/elasticsearch-operator v0.0.0-20250923121540-138a709613fd // indirect
@@ -244,7 +244,7 @@ require (
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
@@ -256,13 +256,13 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gorm.io/gorm v1.31.2 // indirect
-	k8s.io/apiserver v0.36.5 // indirect
-	k8s.io/cli-runtime v0.36.5 // indirect
-	k8s.io/component-base v0.36.5 // indirect
+	k8s.io/apiserver v0.37.2 // indirect
+	k8s.io/cli-runtime v0.37.2 // indirect
+	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-openapi v0.35.1 // indirect
-	k8s.io/kubectl v0.36.5 // indirect
-	k8s.io/streaming v0.36.5 // indirect
+	k8s.io/kubectl v0.37.2 // indirect
+	k8s.io/streaming v0.37.2 // indirect
 	maistra.io/api v0.0.0-20240319144440-ffa91c765143 // indirect
 	sigs.k8s.io/cluster-api v1.13.4 // indirect
 	sigs.k8s.io/cluster-api-provider-azure v1.24.2 // indirect
@@ -282,13 +282,13 @@ replace (
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v5.2.1-0.20190425001840-d5e6a33a1729+incompatible
 	github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.13.1
 	// PTP declares legacy v0.0.1 versions that outrank its compatible timestamped releases.
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20261015124049-70586205d5fa // release-5.0
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20261017003925-24b2699a9b32
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20260722223301-f50c5b20c7e1 // release-5.0
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260722223301-f50c5b20c7e1 // release-5.0
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20261015075541-6446fecb0c88 // release-5.0
 	github.com/openshift/installer => github.com/openshift/installer v1.5.0-rc-2 // release-5.0
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
-	k8s.io/client-go => k8s.io/client-go v0.36.5
+	k8s.io/client-go => k8s.io/client-go v0.37.2
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // master
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
 )

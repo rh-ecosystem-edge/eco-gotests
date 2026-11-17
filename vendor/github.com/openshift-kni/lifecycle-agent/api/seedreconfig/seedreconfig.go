@@ -1,5 +1,7 @@
 package seedreconfig
 
+import "strings"
+
 type PEM string
 
 const (
@@ -166,6 +168,15 @@ type SeedReconfiguration struct {
 	// In IBI case data will be taken from the user provided configuration.
 	ChronyConfig string `json:"chrony_config,omitempty"`
 
+	// MaxSeedAge optionally overrides the default maximum plausible age of the seed image
+	// used by the post-pivot clock gate (see lca-cli/postpivot). It is a Go duration string
+	// (for example "4320h" for 180 days). The gate rejects a system clock later than the
+	// seed's creation time plus this bound. An empty value uses the default (180 days);
+	// non-parseable, non-positive, or absurdly large values are rejected with a config error.
+	// It lets long-shelf deployments widen the window when no trusted local time source is
+	// available.
+	MaxSeedAge string `json:"max_seed_age,omitempty"`
+
 	AdditionalTrustBundle AdditionalTrustBundle `json:"additionalTrustBundle,omitempty"`
 
 	// The desired node labels for the SNO node.
@@ -202,6 +213,30 @@ type IngresssCrypto struct {
 	// trusted with the target cluster's CA bundle.
 	// Its format is `ingress-operator@<unix-timestamp>`.
 	IngressCertificateCN string `json:"ingress_certificate_cn,omitempty"`
+}
+
+// MissingPEMFields returns the JSON field names of required kubeconfig-retention
+// PEM values that are absent or contain only whitespace. Callers can use this
+// single source of truth when producing mode-specific validation errors.
+func (r KubeConfigCryptoRetention) MissingPEMFields() []string {
+	fields := []struct {
+		name  string
+		value PEM
+	}{
+		{"admin_ca_certificate", r.KubeAPICrypto.ClientAuthCrypto.AdminCACertificate},
+		{"loadbalancer_external_signer_private_key", r.KubeAPICrypto.ServingCrypto.LoadbalancerSignerPrivateKey},
+		{"localhost_signer_private_key", r.KubeAPICrypto.ServingCrypto.LocalhostSignerPrivateKey},
+		{"service_network_signer_private_key", r.KubeAPICrypto.ServingCrypto.ServiceNetworkSignerPrivateKey},
+		{"ingress_ca", r.IngresssCrypto.IngressCAPrivateKey},
+	}
+
+	var missing []string
+	for _, field := range fields {
+		if strings.TrimSpace(string(field.value)) == "" {
+			missing = append(missing, field.name)
+		}
+	}
+	return missing
 }
 
 // Proxy defines the proxy settings for the cluster.

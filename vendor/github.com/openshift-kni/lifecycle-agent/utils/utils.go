@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -152,12 +154,18 @@ func CreateKubeClientFromBytes(scheme *runtime.Scheme, kubeconfigData []byte) (r
 	return rc, nil
 }
 
+// RunOnce invokes f with args only when name's done marker is absent. Existing markers make the
+// operation idempotent; unexpected marker-check failures are returned instead of being treated
+// as a completed run.
 func RunOnce(name, directory string, log *logrus.Logger, f any, args ...any) error {
 	doneFile := path.Join(directory, name+".done")
 	_, err := os.Stat(doneFile)
-	if err == nil || !os.IsNotExist(err) {
+	if err == nil {
 		log.Info(fmt.Sprintf("%s already exists, skipping", doneFile))
 		return nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to check RunOnce file %s: %w", doneFile, err)
 	}
 
 	fValue := reflect.ValueOf(f)
@@ -490,6 +498,34 @@ func CreateDynamicClient(kubeconfig string, isTestEnvAllowed bool, log logr.Logg
 
 	log.Info("Successfully created dynamic client")
 	return dynamicClient, nil
+}
+
+func CreateDiscoveryClient(kubeconfig string, isTestEnvAllowed bool, log logr.Logger) (discovery.DiscoveryInterface, error) {
+	// Read kubeconfig
+	var config *rest.Config
+	if _, err := os.Stat(kubeconfig); err != nil {
+		if isTestEnvAllowed {
+			log.Error(err, "could not find KubeconfigFile. Using empty config only for test environment")
+			config = &rest.Config{}
+		} else {
+			return nil, fmt.Errorf("could not find kubeconfigFile: %w", err)
+		}
+	} else {
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read kubeconfig: %w", err)
+		}
+	}
+	config.Wrap(RetryMiddleware(log)) // allow all client calls to be retriable
+
+	// Create discovery client
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
+	}
+
+	log.Info("Successfully created discovery client")
+	return discoveryClient, nil
 }
 
 func LoadGroupedManifestsFromPath(basePath string, log *logr.Logger) ([][]*unstructured.Unstructured, error) {

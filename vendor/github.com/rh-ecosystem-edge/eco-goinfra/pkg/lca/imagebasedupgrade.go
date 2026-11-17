@@ -258,6 +258,7 @@ func (builder *ImageBasedUpgradeBuilder) WithOadpContent(
 	klog.V(100).Infof("Appending oadpContent's configmap name %s in namespace %s to the imagebasedupgrade",
 		oadpContentConfigMapName, oadpContentConfigMapNamespace)
 
+	//nolint:staticcheck
 	builder.Definition.Spec.OADPContent = append(builder.Definition.Spec.OADPContent,
 		lcav1.ConfigMapRef{Name: oadpContentConfigMapName, Namespace: oadpContentConfigMapNamespace})
 
