@@ -16,7 +16,9 @@ import (
 	cguv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/cgu/clustergroupupgrades/v1alpha1"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 
+	ibguv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/imagebasedgroupupgrades/v1alpha1"
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
+	ipcv1 "github.com/openshift-kni/lifecycle-agent/api/ipconfig/v1"
 	lcasgv1 "github.com/openshift-kni/lifecycle-agent/api/seedgenerator/v1"
 	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	inventoryv1alpha1 "github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1"
@@ -63,6 +65,7 @@ var reporterSchemes = []clients.SchemeAttacher{
 	argocdoperator.AddToScheme,
 	argocdv1alpha1.AddToScheme,
 	cguv1alpha1.AddToScheme,
+	ibguv1alpha1.AddToScheme,
 	olmv1alpha1.AddToScheme,
 	policiesv1beta1.AddToScheme,
 	mcmv1beta1.AddToScheme,
@@ -70,6 +73,7 @@ var reporterSchemes = []clients.SchemeAttacher{
 	nfdv1.AddToScheme,
 	nvidiagpuv1.AddToScheme,
 	lcav1.AddToScheme,
+	ipcv1.AddToScheme,
 	ibiv1alpha1.AddToScheme,
 	siteconfigv1alpha1.AddToScheme,
 	certificatesv1.AddToScheme,
