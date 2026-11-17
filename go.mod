@@ -52,7 +52,7 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v1.20.99
 	github.com/redhat-cne/sdk-go v1.23.6
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261116195101-d170ec772903
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261117211758-191c29e651f1
 	github.com/stmcginnis/gofish v0.27.0
 	github.com/stretchr/testify v1.12.1
 	github.com/vmware-tanzu/velero v1.18.4
@@ -288,7 +288,6 @@ replace (
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20261015075541-6446fecb0c88 // release-5.0
 	github.com/openshift/installer => github.com/openshift/installer v1.5.0-rc-2 // release-5.0
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
-	github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261117185326-3d8f6d46433f
 	k8s.io/client-go => k8s.io/client-go v0.37.2
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
