@@ -126,6 +126,10 @@ func (j *Junos) Commit() error {
 
 // Config sends commands to a Juniper switch.
 func (j *Junos) Config(commands []string) error {
+	return j.config(commands, false)
+}
+
+func (j *Junos) config(commands []string, ignoreMissingStatementWarning bool) error {
 	command := fmt.Sprintf(rpcConfigStringSet, strings.Join(commands, "\n"))
 
 	reply, err := j.Session.Exec(netconf.RawMethod(command))
@@ -133,8 +137,13 @@ func (j *Junos) Config(commands []string) error {
 		return err
 	}
 
-	if len(reply.Errors) > 0 {
-		return errors.New(reply.Errors[0].Message)
+	for _, rpcErr := range reply.Errors {
+		if ignoreMissingStatementWarning && rpcErr.Severity == "warning" &&
+			strings.Contains(strings.ToLower(rpcErr.Message), "statement not found") {
+			continue
+		}
+
+		return errors.New(rpcErr.Message)
 	}
 
 	err = j.Commit()
@@ -324,7 +333,7 @@ func (j *Junos) DisableLACP(lacpInterfaces, physicalInterfaces []string) error {
 		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
 	}
 
-	err := j.Config(commands)
+	err := j.config(commands, true)
 	if err != nil {
 		return fmt.Errorf("failed to execute switch cleanup commands: %w", err)
 	}
