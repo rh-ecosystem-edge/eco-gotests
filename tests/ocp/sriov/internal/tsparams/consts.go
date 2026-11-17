@@ -12,6 +12,8 @@ const (
 	TestNamespaceName2 = "sriov-tests-2"
 	// LabelSuite represents sriov label that can be used for test cases selection.
 	LabelSuite = "ocpsriov"
+	// LabelDRA selects the dedicated DRA lifecycle suite.
+	LabelDRA = "dra"
 	// LabelOcpSriovReinstallation represents an SR-IOV operator reinstallation label
 	// that can be used for test cases selection.
 	LabelOcpSriovReinstallation = "sriovreinstall"

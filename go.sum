@@ -54,6 +54,8 @@ github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6r
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
+github.com/bpickard22/eco-goinfra v0.0.0-20261117223126-bc6da42932f3 h1:sZPj81VIRebgJePy9ZesVm5lJp5jdRQHGjldo0BMNcs=
+github.com/bpickard22/eco-goinfra v0.0.0-20261117223126-bc6da42932f3/go.mod h1:QIuQBLcN0EQlFGqk4pW+OLFsx8QHrZcm1nJzkWP3HPQ=
 github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMUs=
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/cavaliergopher/cpio v1.0.1 h1:KQFSeKmZhv0cr+kawA3a0xTQCU4QxXF1vhU7P7av2KM=
@@ -401,6 +403,8 @@ github.com/jtolds/gls v4.2.1+incompatible/go.mod h1:QJZ7F/aHp+rZTRtaJ1ow/lLfFfVY
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
 github.com/k0kubun/pp/v3 v3.1.0 h1:ifxtqJkRZhw3h554/z/8zm6AAbyO4LLKDlA5eV+9O8Q=
 github.com/k0kubun/pp/v3 v3.1.0/go.mod h1:vIrP5CF0n78pKHm2Ku6GVerpZBJvscg48WepUYEk2gw=
+github.com/k8snetworkplumbingwg/dra-driver-sriov v0.0.0-20260910124445-d29168ca7137 h1:uWNGLgoAbD9+o9YFdhdKVaAwZ0jYVJpzPxha1RSrDhY=
+github.com/k8snetworkplumbingwg/dra-driver-sriov v0.0.0-20260910124445-d29168ca7137/go.mod h1:4A+TyE5UlSdUjZ9ml+BmEcpcyOpu6za3ZRzDZlVfXAU=
 github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1 h1:Egj1hEVYNXWFlKpgzAXxe/2o8VNiVcAJLrKzlinILQo=
 github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1/go.mod h1:kEJ4WM849yNmXekuSXLRwb+LaZ9usC06O8JgoAIq+f4=
 github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7 h1:z4P744DR+PIpkjwXSEc6TvN3L6LVzmUquFgmNm8wSUc=
@@ -530,8 +534,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/opencontainers/runtime-spec v1.2.1 h1:S4k4ryNgEpxW1dzyqffOmhI1BHYcjzU8lpJfSlR0xww=
-github.com/opencontainers/runtime-spec v1.2.1/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
+github.com/opencontainers/runtime-spec v1.3.0 h1:YZupQUdctfhpZy3TM39nN9Ika5CBWT5diQ8ibYCRkxg=
+github.com/opencontainers/runtime-spec v1.3.0/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261105110240-c1eb317ad72e h1:dBzgMMotN/s4EHVtZCntRzxD5SNqLO+lQHeFTCstRsA=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261105110240-c1eb317ad72e/go.mod h1:5sv5fceMv0yTQN+OeWfMlF6PDQN5Y52Uc9ZK+qGl9NA=
 github.com/openshift-kni/k8sreporter v1.1.0 h1:zKbzTAM/7AuOCqLD38QA7Me8IRidq2lVgMrVcoT0QUY=
@@ -605,8 +609,6 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23 h1:qf
 github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23/go.mod h1:dqXnIfZrII4za/cbPkS2iTq2XogfBLsy8WDUeVr0gIs=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261111120532-c01f7d8a06a0 h1:DlSwqmlTeuaEUwOWe2HiwXXqsowaFxOvSa5e0FyjJk0=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261111120532-c01f7d8a06a0/go.mod h1:6O/o7ZId2zkAN6jyoGrnVjqSXq03q2HTGLgjgPtrVbE=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rogpeppe/go-internal v1.15.0 h1:D0RCU5rMAp+SpgkiNdrjfJ+LX4J1M32V2NeCY7EJ6hc=
@@ -1143,6 +1145,8 @@ k8s.io/code-generator v0.22.7/go.mod h1:iOZwYADSgFPNGWfqHFfg1V0TNJnl1t0WyZluQp4b
 k8s.io/code-generator v0.23.3/go.mod h1:S0Q1JVA+kSzTI1oUvbKAxZY/DYbA/ZUb4Uknog12ETk=
 k8s.io/component-base v0.36.5 h1:4lvIJ/QZDOchuIRqIna6JqjqO2MoDsH7JdaQ8FJtLVw=
 k8s.io/component-base v0.36.5/go.mod h1:ZCmi+txXm31F2uYY5p9FwQsww0g5BM0pI/gNsH9uAMY=
+k8s.io/dynamic-resource-allocation v0.36.3 h1:5cDyWiGhqJMrp8UwdgAqHcDkZHQ7wFhIK4aTr3OgFrI=
+k8s.io/dynamic-resource-allocation v0.36.3/go.mod h1:jt+LtmnMqIqV7lG4PznEtuhPy+fHipfAD0Q+biKszAg=
 k8s.io/gengo v0.0.0-20201113003025-83324d819ded/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=
 k8s.io/gengo v0.0.0-20201214224949-b6c5ce23f027/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=
 k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=

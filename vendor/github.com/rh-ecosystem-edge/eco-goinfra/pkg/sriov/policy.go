@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -412,4 +413,40 @@ func (builder *PolicyBuilder) validate() (bool, error) {
 	}
 
 	return true, nil
+}
+
+// Update updates the existing SriovNetworkNodePolicy using the builder definition.
+func (builder *PolicyBuilder) Update() (*PolicyBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Updating SriovNetworkNodePolicy %s", builder.Definition.Name)
+
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
+	if err == nil {
+		builder.Object = builder.Definition
+	}
+
+	return builder, err
+}
+
+// DeleteWithUID removes only the policy with the specified UID, protecting a replacement with the same name.
+// API errors, including NotFound and precondition conflicts, are returned to the caller.
+func (builder *PolicyBuilder) DeleteWithUID(uid types.UID) error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	if uid == "" {
+		return fmt.Errorf("sriovnetworknodepolicy 'uid' cannot be empty")
+	}
+
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition,
+		&runtimeClient.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}})
+	if err == nil {
+		builder.Object = nil
+	}
+
+	return err
 }

@@ -36,6 +36,9 @@ type DeviceConfig struct {
 // SriovOcpConfig type keeps sriov configuration.
 type SriovOcpConfig struct {
 	*ocpconfig.OcpConfig
+	DRAEnable                   bool           `envconfig:"ECO_OCP_SRIOV_DRA_ENABLE"`
+	DRANode                     string         `envconfig:"ECO_OCP_SRIOV_DRA_NODE"`
+	DRAPF                       string         `envconfig:"ECO_OCP_SRIOV_DRA_PF"`
 	OcpSriovOperatorNamespace   string         `yaml:"sriov_operator_namespace" envconfig:"ECO_OCP_SRIOV_OPERATOR_NAMESPACE"` //nolint:lll
 	OcpSriovTestContainer       string         `yaml:"ocp_sriov_test_container" envconfig:"ECO_OCP_SRIOV_TEST_CONTAINER"`
 	DpdkTestContainer           string         `yaml:"dpdk_test_container" envconfig:"ECO_OCP_SRIOV_DPDK_TEST_CONTAINER"`

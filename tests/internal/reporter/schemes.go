@@ -2,6 +2,7 @@ package reporter
 
 import (
 	nvidiagpuv1 "github.com/NVIDIA/gpu-operator/api/v1"
+	sriovdrav1 "github.com/k8snetworkplumbingwg/dra-driver-sriov/pkg/api/sriovdra/v1alpha1"
 	multinetpolicyapiv1beta1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -36,6 +37,7 @@ import (
 	olmv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	certificatesv1 "k8s.io/api/certificates/v1"
+	resourcev1 "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
@@ -54,6 +56,8 @@ var reporterSchemes = []clients.SchemeAttacher{
 	nmstatev1.AddToScheme,
 	nmstatev1beta1.AddToScheme,
 	sriovv1.AddToScheme,
+	sriovdrav1.AddToScheme,
+	resourcev1.AddToScheme,
 	machineconfigv1.Install,
 	performanceprofilev2.AddToScheme,
 	multinetpolicyapiv1beta1.AddToScheme,

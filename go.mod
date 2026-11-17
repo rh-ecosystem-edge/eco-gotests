@@ -22,6 +22,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
 	github.com/hashicorp/go-version v1.9.0
+	github.com/k8snetworkplumbingwg/dra-driver-sriov v0.0.0-20260910124445-d29168ca7137
 	github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/k8snetworkplumbingwg/ptp-operator v0.0.0-20261105101233-5af7dd4d71de
@@ -196,7 +197,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runtime-spec v1.2.1 // indirect
+	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/openshift/cluster-logging-operator/api/observability v0.0.0-20261105045812-9b9d58ba71cd // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/openshift/elasticsearch-operator v0.0.0-20250923121540-138a709613fd // indirect
@@ -259,6 +260,7 @@ require (
 	k8s.io/apiserver v0.36.5 // indirect
 	k8s.io/cli-runtime v0.36.5 // indirect
 	k8s.io/component-base v0.36.5 // indirect
+	k8s.io/dynamic-resource-allocation v0.36.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-openapi v0.35.1 // indirect
 	k8s.io/kubectl v0.36.5 // indirect
@@ -292,3 +294,5 @@ replace (
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // master
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/bpickard22/eco-goinfra v0.0.0-20261117223126-bc6da42932f3

@@ -632,6 +632,10 @@ github.com/jpillora/backoff
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
+# github.com/k8snetworkplumbingwg/dra-driver-sriov v0.0.0-20260910124445-d29168ca7137
+## explicit; go 1.26.0
+github.com/k8snetworkplumbingwg/dra-driver-sriov/pkg/api/sriovdra/v1alpha1
+github.com/k8snetworkplumbingwg/dra-driver-sriov/pkg/consts
 # github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
 ## explicit; go 1.13
 github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io
@@ -817,7 +821,7 @@ github.com/opencontainers/go-digest
 ## explicit; go 1.18
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runtime-spec v1.2.1
+# github.com/opencontainers/runtime-spec v1.3.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261105110240-c1eb317ad72e
@@ -1019,7 +1023,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261111120532-c01f7d8a06a0
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261111120532-c01f7d8a06a0 => github.com/bpickard22/eco-goinfra v0.0.0-20261117223126-bc6da42932f3
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1205,6 +1209,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/servicemesh
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-fec
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriovdra
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/velero
@@ -2050,6 +2055,9 @@ k8s.io/component-base/metrics/prometheus/feature
 k8s.io/component-base/metrics/prometheusextension
 k8s.io/component-base/tracing/api/v1
 k8s.io/component-base/version
+# k8s.io/dynamic-resource-allocation v0.36.3
+## explicit; go 1.26.0
+k8s.io/dynamic-resource-allocation/deviceattribute
 # k8s.io/klog v1.0.0
 ## explicit; go 1.12
 k8s.io/klog
@@ -2309,3 +2317,4 @@ sigs.k8s.io/yaml/kyaml
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 # k8s.io/client-go => k8s.io/client-go v0.36.5
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098
+# github.com/rh-ecosystem-edge/eco-goinfra => github.com/bpickard22/eco-goinfra v0.0.0-20261117223126-bc6da42932f3

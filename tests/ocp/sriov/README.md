@@ -1,5 +1,101 @@
 # OCP SR-IOV Test Suite
 
+## DRA lifecycle coverage
+
+The separate `tests/ocp/sriov/dra` suite ports the six functional cases from
+[operator PR 1151](https://github.com/k8snetworkplumbingwg/sriov-network-operator/pull/1151),
+using reference commit `02c9caacf32d0dcae37a7cb5d38f3b2d5a74cc92`.
+It verifies provider enablement, the base DeviceClass, policy-generated DRA
+resources, advertisement of two VFs, an in-place increase to four VFs, and DRA
+disablement with device-plugin restoration. It does not test ResourceClaim
+consumption by workloads or network traffic.
+
+The suite changes the operator-wide resource provider and configures a selected
+PF. Reserve an exclusive operator test window or use a dedicated cluster. A
+selected node/PF and Ginkgo serial execution do not isolate other users of the
+operator. Node reconfiguration may drain or reboot nodes depending on the
+operator configuration. Do not run alongside other SR-IOV suites or jobs.
+
+### Prerequisites
+
+- A healthy installed operator containing the referenced DRA integration and a
+  compatible dra-driver-sriov image. The general suite's OpenShift minimum does
+  not establish DRA support; validate the actual operator and platform versions.
+- `resource.k8s.io/v1` APIs and the driver's DRA CRDs available as required by
+  the deployment. Explicitly enabled runs fail when required APIs cannot be read.
+- DRA disabled initially and no conflicting SR-IOV policies or active users of
+  the provider. The suite must not remove other users' configuration.
+- An explicitly selected managed node and unused PF supporting at least four VFs.
+- Credentials permitting reads of nodes, SR-IOV node states, DaemonSets, pods,
+  DeviceClasses, ResourceSlices and driver resources; update of operator config;
+  and creation, update and deletion of test policies. Existing reporter behavior
+  may also require access to logs/events.
+- The companion eco-goinfra DRA helpers. This review branch uses an immutable
+  fork revision through a Go module replacement, with dependencies vendored.
+  Before merge, remove that replacement and pin the merged upstream revision.
+
+### Configuration and execution
+
+For local verification with Go 1.27.3 or newer, run from eco-gotests:
+
+```bash
+verify_dir=$(mktemp -d)
+KUBECONFIG=/dev/null go test ./tests/ocp/sriov/dra/internal/draenv
+go test -c -o "$verify_dir/dra.test" ./tests/ocp/sriov/dra
+```
+
+The helper package has no cluster-client initialization. The final command only
+compiles; do not execute the resulting integration binary as a local check.
+
+| Variable | Meaning |
+| --- | --- |
+| `ECO_OCP_SRIOV_DRA_ENABLE` | Explicit opt-in; defaults to false |
+| `ECO_OCP_SRIOV_DRA_NODE` | Exact node name; required when enabled |
+| `ECO_OCP_SRIOV_DRA_PF` | PF interface name on that node; required when enabled |
+| `ECO_OCP_SRIOV_OPERATOR_NAMESPACE` | Existing operator namespace setting |
+
+The following is a user-run command template, not evidence of cluster validation.
+Set the placeholders only after coordinating the test window and checking the
+prerequisites. Run from the repository root with the vendored dependencies.
+
+```bash
+export KUBECONFIG=/path/to/kubeconfig
+export ECO_OCP_SRIOV_DRA_ENABLE=true
+export ECO_OCP_SRIOV_DRA_NODE=<reserved-node>
+export ECO_OCP_SRIOV_DRA_PF=<reserved-pf>
+export ECO_TEST_FEATURES=ocp/sriov/dra
+export ECO_TEST_LABELS='ocpsriov && dra'
+make run-tests
+```
+
+Replace angle-bracket placeholders before executing. Select the exact nested
+feature path: `sriov` and `all` recursively discover other suites with their own
+setup and cleanup. The DRA suite does not need a workload namespace or image
+pre-pull. Run the complete ordered container; filtering individual dependent
+cases does not establish six-case coverage. Assigned test-management IDs remain
+pending and must not be fabricated.
+
+### Results and recovery
+
+Require all six cases to pass without skips and verify cleanup. Retain the JUnit
+report, configured failure artifacts, the test/library revisions, OpenShift and
+operator/driver versions, hardware selection and test duration. A default-disabled
+skip is not a successful DRA validation. RDU2 lab relocation may affect baremetal
+execution availability independently of a test failure.
+
+Cleanup removes only test-owned policies, waits for PF reconfiguration and restores
+the original DRA flag entry. It must not delete operator-generated resources to
+make assertions pass. A killed test process or an API outage can prevent cleanup.
+If cleanup fails, stop additional runs and inspect the reported policy names,
+selected node state and current operator flag. Remove only positively identified
+test policies, wait for node/PF convergence, and only then restore the original
+provider setting. Do not use bulk policy or namespace deletion. Review exact
+recovery commands against the captured failure state before executing them.
+
+Cluster execution and verification are pending. This suite supplies downstream
+functional coverage; security-lane and DRA CI-lane configuration are separate
+CORENET-7535 deliverables.
+
 ## Overview
 
 This test suite validates SR-IOV (Single Root I/O Virtualization) functionality on OpenShift Container Platform (OCP) clusters. The tests cover Virtual Function (VF) configuration, network connectivity, and operator lifecycle management.
