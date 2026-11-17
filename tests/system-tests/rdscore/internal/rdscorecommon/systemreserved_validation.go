@@ -191,6 +191,7 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		// Extract systemReserved from PerformanceProfile
 		// Track source of each value for accurate error messages
 		var cpuSource, memSource string
+
 		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -707,58 +708,67 @@ func validateNodeAllocatable(node *nodes.Builder) {
 	// Try to get actual systemReserved from PerformanceProfile if available
 	// Track whether values come from PerformanceProfile or baseline
 	var cpuFromProfile, memFromProfile bool
+
 	allProfiles, err := nto.ListProfiles(APIClient)
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"⚠ Node %s - Failed to list PerformanceProfiles: %v, using baseline\n", nodeName, err)
+
 		cpuReserved = baselineCPU
 		memoryReserved = baselineMemory
 		cpuFromProfile = false
 		memFromProfile = false
 	} else {
 		matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
-	if matchingProfile != nil {
-		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
-		if err == nil {
-			// Use PerformanceProfile values, fall back to baseline for empty fields
-			if cpu != "" {
-				cpuReserved = cpu
-				cpuFromProfile = true
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Node %s - Using CPU systemReserved from PerformanceProfile: %s\n", nodeName, cpu)
-			} else {
-				cpuReserved = baselineCPU
-				cpuFromProfile = false
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Node %s - PerformanceProfile has no CPU, skipping CPU allocatable test\n", nodeName)
-			}
 
-			if mem != "" {
-				memoryReserved = mem
-				memFromProfile = true
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Node %s - Using Memory systemReserved from PerformanceProfile: %s\n", nodeName, mem)
+		if matchingProfile != nil {
+			cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
+			if err == nil {
+				// Use PerformanceProfile values, fall back to baseline for empty fields
+				if cpu != "" {
+					cpuReserved = cpu
+					cpuFromProfile = true
+
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Node %s - Using CPU systemReserved from PerformanceProfile: %s\n", nodeName, cpu)
+				} else {
+					cpuReserved = baselineCPU
+					cpuFromProfile = false
+
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Node %s - PerformanceProfile has no CPU, skipping CPU allocatable test\n", nodeName)
+				}
+
+				if mem != "" {
+					memoryReserved = mem
+					memFromProfile = true
+
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Node %s - Using Memory systemReserved from PerformanceProfile: %s\n", nodeName, mem)
+				} else {
+					memoryReserved = baselineMemory
+					memFromProfile = false
+
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Node %s - PerformanceProfile has no Memory, skipping Memory allocatable test\n", nodeName)
+				}
 			} else {
+				// PerformanceProfile exists but annotation is incomplete - use baseline
+				cpuReserved = baselineCPU
 				memoryReserved = baselineMemory
+				cpuFromProfile = false
 				memFromProfile = false
+
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Node %s - PerformanceProfile has no Memory, skipping Memory allocatable test\n", nodeName)
+					"Node %s - PerformanceProfile found but annotation incomplete, using baseline\n", nodeName)
 			}
 		} else {
-			// PerformanceProfile exists but annotation is incomplete - use baseline
-			cpuReserved = baselineCPU
-			memoryReserved = baselineMemory
-			cpuFromProfile = false
-			memFromProfile = false
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"Node %s - PerformanceProfile found but annotation incomplete, using baseline\n", nodeName)
-		}
-	} else {
 			// No PerformanceProfile - use baseline
 			cpuReserved = baselineCPU
 			memoryReserved = baselineMemory
 			cpuFromProfile = false
 			memFromProfile = false
+
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Node %s - No PerformanceProfile found, using baseline\n", nodeName)
 		}
