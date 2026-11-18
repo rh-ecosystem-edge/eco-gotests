@@ -9,6 +9,7 @@ import (
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -65,30 +66,29 @@ func setInterfaceDown(apiClient *clients.Settings, nodeName string, ifaceName If
 }
 
 // setInterfaceUp brings the interface up, returns it to NetworkManager, and schedules the config daemon again once
-// every interface set down is up. The link is up before the daemon is scheduled.
+// every interface set down is up. The link is up before the daemon is scheduled. A failed NetworkManager restore keeps
+// its record, so a later up retries it and the daemon stays paused until that retry succeeds.
 func setInterfaceUp(apiClient *clients.Settings, nodeName string, ifaceName Iface) error {
 	if err := setLinkState(apiClient, nodeName, ifaceName, InterfaceStateUp); err != nil {
 		return err
 	}
 
-	var nmErr error
-
 	key := downInterfaceKey(nodeName, ifaceName)
 	if managed, tracked := downInterfaces[key]; tracked {
-		delete(downInterfaces, key)
-
 		if managed {
-			nmErr = setNetworkManagerManaged(apiClient, nodeName, ifaceName, true)
+			if err := setNetworkManagerManaged(apiClient, nodeName, ifaceName, true); err != nil {
+				return err
+			}
 		}
+
+		delete(downInterfaces, key)
 	}
 
 	if len(downInterfaces) == 0 && configDaemonPaused {
-		if err := resumeConfigDaemon(apiClient); err != nil {
-			return err
-		}
+		return resumeConfigDaemon(apiClient)
 	}
 
-	return nmErr
+	return nil
 }
 
 // interfaceIsDown reports whether ip link show already contains state DOWN.
@@ -110,16 +110,16 @@ func pauseConfigDaemonForInterface(apiClient *clients.Settings, nodeName string,
 		return err
 	}
 
-	if err := apiClient.AttachScheme(sriovv1.AddToScheme); err != nil {
-		return fmt.Errorf("failed to register the SR-IOV scheme: %w", err)
-	}
-
-	config := &sriovv1.SriovOperatorConfig{}
-	if err := apiClient.Get(context.Background(), sriovOperatorConfigKey(), config); err != nil {
+	config, err := sriov.PullOperatorConfig(apiClient, sriovOperatorNamespace)
+	if err != nil {
 		return fmt.Errorf("failed to get SriovOperatorConfig %s: %w", sriovOperatorConfigName, err)
 	}
 
-	savedConfigDaemonSelector = maps.Clone(config.Spec.ConfigDaemonNodeSelector)
+	if config.Definition == nil {
+		return fmt.Errorf("failed to get SriovOperatorConfig %s", sriovOperatorConfigName)
+	}
+
+	savedConfigDaemonSelector = maps.Clone(config.Definition.Spec.ConfigDaemonNodeSelector)
 
 	err = updateConfigDaemonSelector(apiClient, map[string]string{
 		configDaemonPausedLabel: configDaemonPausedValue,
@@ -140,16 +140,12 @@ func pauseConfigDaemonForInterface(apiClient *clients.Settings, nodeName string,
 // interfaceNeedsConfigDaemonPause reports whether bringing this interface down would make the config daemon repair it.
 // A missing SR-IOV installation is not an error.
 func interfaceNeedsConfigDaemonPause(apiClient *clients.Settings, nodeName string, ifaceName Iface) (bool, error) {
-	if err := apiClient.AttachScheme(sriovv1.AddToScheme); err != nil {
-		return false, fmt.Errorf("failed to register the SR-IOV scheme: %w", err)
+	state := sriov.NewNetworkNodeStateBuilder(apiClient, nodeName, sriovOperatorNamespace)
+	if state == nil {
+		return false, fmt.Errorf("failed to create the SriovNetworkNodeState builder for node %s", nodeName)
 	}
 
-	state := &sriovv1.SriovNetworkNodeState{}
-
-	err := apiClient.Get(context.Background(), runtimeclient.ObjectKey{
-		Name:      nodeName,
-		Namespace: sriovOperatorNamespace,
-	}, state)
+	err := state.Discover()
 	if k8serrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 		return false, nil
 	}
@@ -158,7 +154,7 @@ func interfaceNeedsConfigDaemonPause(apiClient *clients.Settings, nodeName strin
 		return false, fmt.Errorf("failed to get SriovNetworkNodeState %s: %w", nodeName, err)
 	}
 
-	return pfRequiresConfigDaemonPause(state, ifaceName), nil
+	return pfRequiresConfigDaemonPause(state.Objects, ifaceName), nil
 }
 
 // pfRequiresConfigDaemonPause reports whether the config daemon treats this netdev as a physical function it must
@@ -213,20 +209,48 @@ func resumeConfigDaemon(apiClient *clients.Settings) error {
 	return nil
 }
 
-// updateConfigDaemonSelector writes configDaemonNodeSelector. A nil selector clears the field.
+// updateConfigDaemonSelector writes configDaemonNodeSelector. An empty selector clears the field. The operator-config
+// builder rejects an empty selector, so that restore updates the object directly.
 func updateConfigDaemonSelector(apiClient *clients.Settings, selector map[string]string) error {
+	if len(selector) == 0 {
+		return clearConfigDaemonSelector(apiClient)
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		config, err := sriov.PullOperatorConfig(apiClient, sriovOperatorNamespace)
+		if err != nil {
+			return err
+		}
+
+		_, err = config.WithConfigDaemonNodeSelector(selector).Update()
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update configDaemonNodeSelector on %s: %w", sriovOperatorConfigName, err)
+	}
+
+	return nil
+}
+
+// clearConfigDaemonSelector removes configDaemonNodeSelector. The operator-config builder rejects an empty map.
+func clearConfigDaemonSelector(apiClient *clients.Settings) error {
+	if err := apiClient.AttachScheme(sriovv1.AddToScheme); err != nil {
+		return fmt.Errorf("failed to register the SR-IOV scheme: %w", err)
+	}
+
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		config := &sriovv1.SriovOperatorConfig{}
 		if err := apiClient.Get(context.Background(), sriovOperatorConfigKey(), config); err != nil {
 			return err
 		}
 
-		config.Spec.ConfigDaemonNodeSelector = selector
+		config.Spec.ConfigDaemonNodeSelector = nil
 
 		return apiClient.Update(context.Background(), config)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update configDaemonNodeSelector on %s: %w", sriovOperatorConfigName, err)
+		return fmt.Errorf("failed to clear configDaemonNodeSelector on %s: %w", sriovOperatorConfigName, err)
 	}
 
 	return nil
