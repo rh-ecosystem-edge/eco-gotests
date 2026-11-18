@@ -149,6 +149,11 @@ var _ = Describe(
 			It("Verifies all policies are compliant", reportxml.ID("72354"), Label("validate-policies"),
 				rdscorecommon.ValidateAllPoliciesCompliant)
 
+			It("Verify iptables-alerter is disabled",
+				Label("iptables-alerter", "network-operator-config"),
+				reportxml.ID("95009"),
+				rdscorecommon.VerifyIptablesAlerterDisabled)
+
 			DescribeTable("Verifies ClusterImagePolicy signature validation",
 				rdscorecommon.VerifyImageSignaturePolicy,
 				Entry("Signed publicKey regular image passes validation",
