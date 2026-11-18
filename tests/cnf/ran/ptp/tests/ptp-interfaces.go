@@ -30,12 +30,26 @@ import (
 
 var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 	var (
-		prometheusAPI   prometheusv1.API
-		savedPtpConfigs []*ptp.PtpConfigBuilder
+		prometheusAPI       prometheusv1.API
+		savedPtpConfigs     []*ptp.PtpConfigBuilder
+		interfacesToRestore []interfaceToRestore
 	)
+
+	// markForRestore records interfaces a test is about to bring down. AfterEach brings them up before it waits
+	// for the clocks to lock.
+	markForRestore := func(nodeName string, ifaceNames ...iface.Iface) {
+		for _, ifaceName := range ifaceNames {
+			interfacesToRestore = append(interfacesToRestore, interfaceToRestore{
+				nodeName:  nodeName,
+				ifaceName: ifaceName,
+			})
+		}
+	}
 
 	BeforeEach(func() {
 		var err error
+
+		interfacesToRestore = nil
 
 		By("creating a Prometheus API client")
 
@@ -54,6 +68,25 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 	})
 
 	AfterEach(func() {
+		if len(interfacesToRestore) > 0 {
+			By("bringing interfaces back up")
+
+			var restoreErrs []error
+
+			for _, toRestore := range interfacesToRestore {
+				err := iface.SetInterfaceStatus(
+					RANConfig.Spoke1APIClient, toRestore.nodeName, toRestore.ifaceName, iface.InterfaceStateUp)
+				if err != nil {
+					klog.V(tsparams.LogLevel).Infof("Failed to set interface %s to up on node %s: %v",
+						toRestore.ifaceName, toRestore.nodeName, err)
+
+					restoreErrs = append(restoreErrs, err)
+				}
+			}
+
+			Expect(restoreErrs).To(BeEmpty(), "Failed to bring interfaces back up before checking lock")
+		}
+
 		By("restoring PtpConfigs after testing")
 
 		startTime := time.Now()
@@ -80,7 +113,10 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
-	// 49742 - Validating events when slave interface goes down and up
+	// 49742 - Validating events when slave interface goes down and up.
+	// Applies to slave ports that do not stay in holdover: OC, BC, and a T-BC whose plugin sets
+	// LocalHoldoverTimeout to 0. T-TSC and T-BC with a longer holdover timeout are skipped.
+	// Those holdover cases are covered by ptp-holdover.go.
 	It("should generate events when slave interface goes down and up", reportxml.ID("49742"), func() {
 		testActuallyRan := false
 
@@ -92,7 +128,10 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("getting receiver interfaces for node " + nodeName)
 
-			receiverInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+			receiverInterfaces, err := receiverInterfacesExcludingTBC(
+				nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient))
+			Expect(err).ToNot(HaveOccurred(), "Failed to check T-BC holdover timeout for node %s", nodeName)
+
 			if len(receiverInterfaces) == 0 {
 				continue
 			}
@@ -111,14 +150,19 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			for nicName, interfaceGroup := range interfaceGroups {
 				// Especially for SNO, bringing down the egress interface will break the test, so we skip
-				// this NIC.
-				if nicName == egressInterface.GetAlias() {
-					klog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", nicName)
+				// a group that contains it. Alias equality is not enough: eno1np0 and eno2np3 both alias
+				// to enox.
+				if slices.Contains(interfaceGroup, egressInterface) {
+					klog.V(tsparams.LogLevel).Infof(
+						"Skipping receiver interfaces %v because they include egress interface %s",
+						interfaceGroup, egressInterface)
 
 					continue
 				}
 
 				testActuallyRan = true
+
+				markForRestore(nodeName, interfaceGroup...)
 
 				// Include all interfaces in the interface group in the interface information report for this suite.
 				nicinfo.Node(nodeName).MarkTested(iface.NamesToStrings(interfaceGroup)...)
@@ -128,25 +172,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
-				// DeferCleanup will create a pseudo-AfterEach to run after the test completes, even if
-				// it fails. This ensures these interfaces are set up even if the test fails.
-				DeferCleanup(func() {
-					By("ensuring all interfaces are set up even if the test fails")
-
-					var errs []error
-
-					for _, ifaceName := range interfaceGroup {
-						err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, ifaceName, iface.InterfaceStateUp)
-						if err != nil {
-							klog.V(tsparams.LogLevel).Infof("Failed to set interface %s to up on node %s: %v", ifaceName, nodeName, err)
-
-							errs = append(errs, err)
-						}
-					}
-
-					Expect(errs).To(BeEmpty(), "Failed to set some interfaces to up on node %s", nodeName)
-				})
-
 				startTime := time.Now()
 
 				By("setting all interfaces in the group to be down")
@@ -155,15 +180,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, ifaceName, iface.InterfaceStateDown)
 					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", ifaceName, nodeName)
 				}
-
-				By("waiting for ptp state change HOLDOVER event")
-
-				holdoverFilter := events.All(
-					events.IsType(eventptp.PtpStateChange),
-					events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(nicName)),
-				)
-				err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, holdoverFilter)
-				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change HOLDOVER event")
 
 				By("waiting for ptp state change FREERUN event")
 
@@ -209,7 +225,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		}
 
 		if !testActuallyRan {
-			Skip("Could not find any interfaces to test")
+			Skip("Could not find a receiver interface outside a T-BC or T-TSC profile and the egress interface")
 		}
 	})
 
@@ -253,20 +269,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				"Failed to get Boundary Clock master interfaces for node %s", nodeName)
 
 			masterInterfaceGroups := iface.GroupInterfacesByNIC(profiles.GetInterfacesNames(masterInterfaces))
-
-			DeferCleanup(func() {
-				if !CurrentSpecReport().Failed() {
-					return
-				}
-
-				By("setting the boundary clock master interfaces up")
-
-				for _, masterInterface := range masterInterfaces {
-					By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Iface))
-					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Iface, iface.InterfaceStateUp)
-					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Iface, nodeName)
-				}
-			})
+			markForRestore(nodeName, profiles.GetInterfacesNames(masterInterfaces)...)
 
 			startTime := time.Now()
 
@@ -406,13 +409,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By(fmt.Sprintf("bringing down the active HA's interface %s", activeProfileClientInterface))
 
-			DeferCleanup(func() {
-				By("restoring original active HA's interface")
-
-				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient,
-					nodeName, activeProfileClientInterface, iface.InterfaceStateUp)
-				Expect(err).ToNot(HaveOccurred(), "Failed to restore original active HA's interface")
-			})
+			markForRestore(nodeName, activeProfileClientInterface)
 
 			err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient,
 				nodeName, activeProfileClientInterface, iface.InterfaceStateDown)
@@ -582,14 +579,8 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			testActuallyRan = true
 
 			By("bringing down all HA interfaces")
-			DeferCleanup(func() {
-				By("restoring all HA interfaces")
 
-				for _, haInterface := range haInterfaces {
-					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateUp)
-					Expect(err).ToNot(HaveOccurred(), "Failed to restore HA interface %s", haInterface)
-				}
-			})
+			markForRestore(nodeName, haInterfaces...)
 
 			for _, haInterface := range haInterfaces {
 				err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateDown)
@@ -793,6 +784,70 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			})
 	})
 })
+
+// interfaceToRestore is an interface a test brought down. AfterEach brings it up before waiting for lock.
+type interfaceToRestore struct {
+	nodeName  string
+	ifaceName iface.Iface
+}
+
+// receiverInterfacesExcludingTBC drops T-TSC receivers and T-BC receivers whose holdover lasts longer than
+// this test waits for FREERUN. A T-BC receiver whose plugin sets LocalHoldoverTimeout to 0 is kept.
+func receiverInterfacesExcludingTBC(
+	interfaces []*profiles.InterfaceInfo,
+) ([]*profiles.InterfaceInfo, error) {
+	testable := make([]*profiles.InterfaceInfo, 0, len(interfaces))
+
+	for _, receiver := range interfaces {
+		if receiver.Profile != nil && receiver.Profile.ProfileType == profiles.ProfileTypeTTSC {
+			klog.V(tsparams.LogLevel).Infof(
+				"Skipping T-TSC receiver interface %s because the holdover timeout exceeds this test", receiver.Iface)
+
+			continue
+		}
+
+		if receiver.Profile == nil || !isTBCProfile(receiver.Profile.ProfileType) {
+			testable = append(testable, receiver)
+
+			continue
+		}
+
+		disabled, err := profileDisablesHoldover(receiver.Profile)
+		if err != nil {
+			return nil, err
+		}
+
+		if disabled {
+			klog.V(tsparams.LogLevel).Infof(
+				"Keeping T-BC receiver interface %s because LocalHoldoverTimeout is 0", receiver.Iface)
+
+			testable = append(testable, receiver)
+
+			continue
+		}
+
+		klog.V(tsparams.LogLevel).Infof(
+			"Skipping T-BC receiver interface %s because the holdover timeout exceeds this test", receiver.Iface)
+	}
+
+	return testable, nil
+}
+
+// profileDisablesHoldover reports whether the profile's Intel plugin sets LocalHoldoverTimeout to 0.
+func profileDisablesHoldover(profileInfo *profiles.ProfileInfo) (bool, error) {
+	ptpProfile, err := profileInfo.PullProfile(RANConfig.Spoke1APIClient)
+	if err != nil {
+		return false, fmt.Errorf("failed to read holdover timeout for profile %s: %w",
+			profileInfo.Reference.ProfileName, err)
+	}
+
+	return profiles.LocalHoldoverTimeoutDisabled(ptpProfile), nil
+}
+
+// isTBCProfile reports whether the profile is a telecom boundary clock receiver.
+func isTBCProfile(profileType profiles.PtpProfileType) bool {
+	return profileType == profiles.ProfileTypeTBCReceiver || profileType == profiles.ProfileTypeDualTBCReceiver
+}
 
 // waitForActiveHAProfileChange waits for the active HA profile to change away from the specified profile.
 // It returns the new active profile name.

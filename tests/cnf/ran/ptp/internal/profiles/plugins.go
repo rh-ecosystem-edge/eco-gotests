@@ -236,6 +236,38 @@ func GetHoldoverPluginSettings(profile *ptpv1.PtpProfile) (*HoldoverPluginSettin
 	}, nil
 }
 
+// LocalHoldoverTimeoutDisabled reports whether an Intel plugin explicitly sets LocalHoldoverTimeout to 0.
+// An omitted setting is not disabled. The first plugin in E810, E825, E830 order that contains the key
+// decides the value.
+func LocalHoldoverTimeoutDisabled(profile *ptpv1.PtpProfile) bool {
+	timeout, specified := specifiedLocalHoldoverTimeout(profile)
+
+	return specified && timeout == 0
+}
+
+// specifiedLocalHoldoverTimeout returns the first explicit LocalHoldoverTimeout among Intel plugins.
+func specifiedLocalHoldoverTimeout(profile *ptpv1.PtpProfile) (uint64, bool) {
+	if profile == nil {
+		return 0, false
+	}
+
+	for _, pluginType := range holdoverPluginTypes {
+		plugin, err := getIntelPlugin(profile, pluginType)
+		if err != nil || plugin.DpllSettings == nil {
+			continue
+		}
+
+		timeout, ok := plugin.DpllSettings["LocalHoldoverTimeout"]
+		if !ok {
+			continue
+		}
+
+		return timeout, true
+	}
+
+	return 0, false
+}
+
 // SetHoldoverPluginSettings patches the holdover plugin settings on the first Intel plugin
 // found in the profile. E810, E825, and E830 all use an identical DpllSettings map.
 func SetHoldoverPluginSettings(profile *ptpv1.PtpProfile, settings HoldoverPluginSettings) error {
