@@ -82,13 +82,12 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying altnames without identifiers")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, primaryIfaceAltnames, false)(Default)
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf1, secondaryIfaceAltnames, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, primaryIfaceAltnames, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf1, secondaryIfaceAltnames, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Delete Existing NNCP and Create a new one with altnames removed")
 
@@ -121,11 +120,12 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 			err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncp)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create NMState policy")
 
-			nnstate, err := nmstate.PullNodeNetworkState(APIClient, workerNodes[0].Object.Name)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork state")
-
-			validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
-			validateAltnamesFromNodeNetworkState(nnstate, sriovIf1, altnames2, false)(Default)
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf1, altnames2, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Delete Existing NNCP and Create a new one with altnames removed")
 
@@ -193,12 +193,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying altnames without identifiers")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Delete Existing NNCP and Create a new one with physical interface removed")
 
@@ -393,12 +390,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying the altname is added")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			nncp2 := nmstate.NewPolicyBuilder(APIClient, policyName2, worker0LabelMap).
 				WithInterfaceAltnames(altnames1[0], altnames2)
@@ -408,12 +402,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying the altname is added")
 
-			nnstates, err = getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, combinedAltnames, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, combinedAltnames, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Deleting the NMState policy")
 			deletePriorPoliciesApplyRemovalPolicyAndVerify(
@@ -440,12 +431,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying the altname is added")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Creating NetworkAttachmentDefinition of type host-device with altname as interface name")
 
@@ -517,12 +505,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying the altname is added")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Waiting for SriovNetworkNodeState to reflect the new altname")
 
@@ -589,26 +574,6 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 		})
 	})
 })
-
-func getNodeNetworkStates(label map[string]string) ([]*nmstate.StateBuilder, error) {
-	nodesList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: labels.Set(label).String()})
-	if err != nil {
-		return nil, err
-	}
-
-	var nnstates []*nmstate.StateBuilder
-
-	for _, node := range nodesList {
-		nnstate, err := nmstate.PullNodeNetworkState(APIClient, node.Object.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		nnstates = append(nnstates, nnstate)
-	}
-
-	return nnstates, nil
-}
 
 // validateAltnamesOnNode returns a Gomega assertion function that pulls fresh NodeNetworkState on each poll,
 // for use with Eventually(...).Should(Succeed()).
@@ -692,13 +657,10 @@ func deletePriorPoliciesApplyRemovalPolicyAndVerify(
 
 	By("Verifying altnames removed")
 
-	nnstates, err := getNodeNetworkStates(nodeLabel)
-	Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-	for _, nnstate := range nnstates {
-		for i, iface := range interfaceNames {
-			validateAltnamesFromNodeNetworkState(nnstate, iface, altnames[i], true)(Default)
-		}
+	nodeName := nodeLabel[corev1.LabelHostname]
+	for i, iface := range interfaceNames {
+		Eventually(validateAltnamesOnNode(nodeName, iface, altnames[i], true)).
+			WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 	}
 
 	By("Deleting the NMState policy")
