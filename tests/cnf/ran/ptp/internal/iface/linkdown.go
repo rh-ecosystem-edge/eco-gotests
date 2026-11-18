@@ -9,16 +9,15 @@ import (
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -65,11 +64,13 @@ func setInterfaceDown(apiClient *clients.Settings, nodeName string, ifaceName If
 	return setLinkState(apiClient, nodeName, ifaceName, InterfaceStateDown)
 }
 
-// setInterfaceUp brings the interface up, returns it to NetworkManager, and schedules the config daemon again once
-// every interface set down is up. The link is up before the daemon is scheduled. A failed NetworkManager restore keeps
-// its record, so a later up retries it and the daemon stays paused until that retry succeeds.
+// setInterfaceUp brings the interface administratively up, returns it to NetworkManager, and schedules the config
+// daemon again once every interface set down is up. The administrative up runs before the daemon is scheduled. The
+// operational-state wait runs after that restore, so a port with no carrier still returns NetworkManager and the
+// daemon to their previous state. A failed NetworkManager restore keeps its record, so a later up retries it and the
+// daemon stays paused until that retry succeeds.
 func setInterfaceUp(apiClient *clients.Settings, nodeName string, ifaceName Iface) error {
-	if err := setLinkState(apiClient, nodeName, ifaceName, InterfaceStateUp); err != nil {
+	if err := setAdministrativeLinkState(apiClient, nodeName, ifaceName, InterfaceStateUp); err != nil {
 		return err
 	}
 
@@ -85,10 +86,12 @@ func setInterfaceUp(apiClient *clients.Settings, nodeName string, ifaceName Ifac
 	}
 
 	if len(downInterfaces) == 0 && configDaemonPaused {
-		return resumeConfigDaemon(apiClient)
+		if err := resumeConfigDaemon(apiClient); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	return waitForLinkOperState(apiClient, nodeName, ifaceName, InterfaceStateUp)
 }
 
 // interfaceIsDown reports whether ip link show already contains state DOWN.
@@ -209,8 +212,8 @@ func resumeConfigDaemon(apiClient *clients.Settings) error {
 	return nil
 }
 
-// updateConfigDaemonSelector writes configDaemonNodeSelector. An empty selector clears the field. The operator-config
-// builder rejects an empty selector, so that restore updates the object directly.
+// updateConfigDaemonSelector writes configDaemonNodeSelector. An empty selector clears the field.
+// WithConfigDaemonNodeSelector rejects an empty selector, so that restore sets the field on the pulled object.
 func updateConfigDaemonSelector(apiClient *clients.Settings, selector map[string]string) error {
 	if len(selector) == 0 {
 		return clearConfigDaemonSelector(apiClient)
@@ -233,21 +236,23 @@ func updateConfigDaemonSelector(apiClient *clients.Settings, selector map[string
 	return nil
 }
 
-// clearConfigDaemonSelector removes configDaemonNodeSelector. The operator-config builder rejects an empty map.
+// clearConfigDaemonSelector removes configDaemonNodeSelector. WithConfigDaemonNodeSelector rejects an empty map, so
+// the field is cleared on the pulled definition before Update.
 func clearConfigDaemonSelector(apiClient *clients.Settings) error {
-	if err := apiClient.AttachScheme(sriovv1.AddToScheme); err != nil {
-		return fmt.Errorf("failed to register the SR-IOV scheme: %w", err)
-	}
-
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		config := &sriovv1.SriovOperatorConfig{}
-		if err := apiClient.Get(context.Background(), sriovOperatorConfigKey(), config); err != nil {
+		config, err := sriov.PullOperatorConfig(apiClient, sriovOperatorNamespace)
+		if err != nil {
 			return err
 		}
 
-		config.Spec.ConfigDaemonNodeSelector = nil
+		if config.Definition == nil {
+			return fmt.Errorf("failed to get SriovOperatorConfig %s", sriovOperatorConfigName)
+		}
 
-		return apiClient.Update(context.Background(), config)
+		config.Definition.Spec.ConfigDaemonNodeSelector = nil
+		_, err = config.Update()
+
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("failed to clear configDaemonNodeSelector on %s: %w", sriovOperatorConfigName, err)
@@ -260,14 +265,19 @@ func clearConfigDaemonSelector(apiClient *clients.Settings) error {
 func waitForConfigDaemonGone(apiClient *clients.Settings) error {
 	err := wait.PollUntilContextTimeout(
 		context.Background(), 2*time.Second, configDaemonRemovedTimeout, true,
-		func(ctx context.Context) (bool, error) {
-			daemon, err := apiClient.DaemonSets(sriovOperatorNamespace).Get(
-				ctx, sriovConfigDaemonDaemonSet, metav1.GetOptions{})
+		func(context.Context) (bool, error) {
+			daemon, err := daemonset.Pull(apiClient, sriovConfigDaemonDaemonSet, sriovOperatorNamespace)
 			if err != nil {
 				return false, err
 			}
 
-			return daemon.Status.DesiredNumberScheduled == 0 && daemon.Status.CurrentNumberScheduled == 0, nil
+			if daemon.Object == nil {
+				return false, fmt.Errorf("DaemonSet %s has no object", sriovConfigDaemonDaemonSet)
+			}
+
+			status := daemon.Object.Status
+
+			return status.DesiredNumberScheduled == 0 && status.CurrentNumberScheduled == 0, nil
 		})
 	if err != nil {
 		return fmt.Errorf("timed out waiting for DaemonSet %s to have desired 0: %w", sriovConfigDaemonDaemonSet, err)
@@ -316,11 +326,6 @@ func setNetworkManagerManaged(apiClient *clients.Settings, nodeName string, ifac
 func execOnHost(apiClient *clients.Settings, nodeName string, command string) (string, error) {
 	return ptpdaemon.ExecuteCommandInPtpDaemonPod(apiClient, nodeName, "nsenter -t 1 -m -- "+command,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true))
-}
-
-// sriovOperatorConfigKey is the object key of the default SriovOperatorConfig.
-func sriovOperatorConfigKey() runtimeclient.ObjectKey {
-	return runtimeclient.ObjectKey{Name: sriovOperatorConfigName, Namespace: sriovOperatorNamespace}
 }
 
 // downInterfaceKey identifies one interface set down on one node.
