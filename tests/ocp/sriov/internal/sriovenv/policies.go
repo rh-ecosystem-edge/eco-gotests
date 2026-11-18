@@ -51,16 +51,17 @@ func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber in
 	return nil
 }
 
-// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD Creation on the test namespace.
+// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits until it is Ready.
+// Prefer waiting on the builder returned by Create (CR namespace), not the NAD target namespace.
 func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
-	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
+	klog.V(90).Infof("Creating SriovNetwork %s and waiting until Ready", sNet.Definition.Name)
 
 	sriovNetwork, err := sNet.Create()
 	if err != nil {
 		return err
 	}
 
-	return WaitForNADCreation(sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
+	return sriovNetwork.WaitUntilReady(timeout)
 }
 
 // CreateSriovNetworkWithStaticIPAM creates an SR-IOV network with static IPAM, IP address, and MAC address support.
@@ -332,5 +333,5 @@ func CreateSriovBondNetwork(name, resourceName string) error {
 		return fmt.Errorf("create or update bond slave SriovNetwork %s: %w", name, err)
 	}
 
-	return WaitForNADCreation(name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
+	return WaitForNADCreation(name, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADWaitTimeout)
 }

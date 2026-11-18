@@ -137,10 +137,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName1, tNs1.Object.Name, "", resourceName1).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 1")
+				By("Waiting for SriovNetwork Ready in namespace 1")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -153,10 +153,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName2, tNs2.Object.Name, "", resourceName1).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 2")
+				By("Waiting for SriovNetwork Ready in namespace 2")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -190,10 +190,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName1, tNs1.Object.Name, "", resourceName1).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 1")
+				By("Waiting for SriovNetwork Ready in namespace 1")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -207,10 +207,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName2, tNs2.Object.Name, "", resourceName2).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 2")
+				By("Waiting for SriovNetwork Ready in namespace 2")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -261,10 +261,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName1, tNs1.Object.Name, "", resourceName1).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 1")
+				By("Waiting for SriovNetwork Ready in namespace 1")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -277,10 +277,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 					APIClient, networkName2, tNs2.Object.Name, "", resourceName2).Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-				By("Waiting for NAD creation in namespace 2")
+				By("Waiting for SriovNetwork Ready in namespace 2")
 
 				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate NAD owner reference")
@@ -295,10 +295,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 				APIClient, "sriovnetwork1", tNs1.Object.Name, "", "resource1").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork")
 
-			By("Waiting for NAD creation in namespace 1")
+			By("Waiting for SriovNetwork Ready in namespace 1")
 
 			err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for NAD creation")
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 
 			By("Deleting SriovNetwork in namespace 1")
 

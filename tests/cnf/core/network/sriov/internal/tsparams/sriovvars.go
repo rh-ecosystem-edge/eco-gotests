@@ -27,7 +27,7 @@ var (
 	MCOWaitTimeout = 35 * time.Minute
 	// PollingIntervalBMC interval to poll the BMC after an error.
 	PollingIntervalBMC = 30 * time.Second
-	// NADWaitTimeout represents timeout for the most ginkgo Eventually functions for NAD creation.
+	// NADWaitTimeout represents timeout for SriovNetwork Ready waits.
 	NADWaitTimeout = 5 * time.Second
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{

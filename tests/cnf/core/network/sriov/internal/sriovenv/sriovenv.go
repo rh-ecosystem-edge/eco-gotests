@@ -61,7 +61,8 @@ func GetMinTotalVFsAcrossWorkers(workerNodeList []*nodes.Builder, pfName string)
 	return minTotal, nil
 }
 
-// DefineAndCreateSriovNetwork creates an enhanced SriovNetwork with optional features and waits for NAD creation.
+// DefineAndCreateSriovNetwork creates an enhanced SriovNetwork with optional features
+// and waits until SriovNetwork is Ready.
 func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP, withTrust bool) error {
 	networkBuilder := sriov.NewNetworkBuilder(
 		APIClient, networkName, NetConfig.SriovOperatorNamespace,
@@ -78,7 +79,7 @@ func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP,
 		networkBuilder = networkBuilder.WithStaticIpam()
 	}
 
-	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // DiscoverInterfaceUnderTestDeviceID discovers device ID for a given SR-IOV interface.
@@ -235,7 +236,7 @@ func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 		WithMacAddressSupport().
 		WithLogLevel(netparam.LogLevelDebug)
 
-	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // whereaboutsDualStackIPAMJSON builds Whereabouts IPAM using ipRanges (per upstream Whereabouts README):
@@ -296,7 +297,7 @@ func CreateSriovNetworkWithWhereaboutsIPAM(
 		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
 	}
 
-	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // applyBondSlaveVFSettings sets bond slave VF params (cnf-gotests defineSriovBondNetwork).
@@ -329,7 +330,7 @@ func CreateSriovBondNetwork(name, resourceName string) error {
 		return fmt.Errorf("create or update bond slave SriovNetwork %s: %w", name, err)
 	}
 
-	return netenv.WaitForNADCreation(APIClient, name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
+	return netenv.WaitForNADCreation(APIClient, name, NetConfig.SriovOperatorNamespace, tsparams.NADWaitTimeout)
 }
 
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
@@ -355,7 +356,7 @@ func CreateSriovNetworkWithVLANAndWhereabouts(
 		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
 	}
 
-	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // GetPodIPFromInterface retrieves an IP address of a specific interface from a pod's network-status annotation.

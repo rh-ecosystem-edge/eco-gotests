@@ -378,9 +378,9 @@ func defineAndCreateSriovNetworkWithRdma(netName, resName string, withRdma bool)
 		testNetBuilder.WithMetaPluginRdma()
 	}
 
-	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, testNetBuilder, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(testNetBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		netName, err)
 
 	return testNetBuilder

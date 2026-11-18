@@ -126,18 +126,18 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName5000).
 				WithStaticIpam().WithMacAddressSupport().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder5000, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder5000, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 				sriovAndResourceName5000, err)
 
 			sriovNetworkBuilder9000 := sriov.NewNetworkBuilder(APIClient, sriovAndResourceName9000,
 				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName9000).
 				WithStaticIpam().WithMacAddressSupport().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder9000, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder9000, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 				sriovAndResourceName9000, err)
 
 			By("Creating 2 pods with different VFs")
@@ -202,9 +202,9 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType, workerName st
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameExposeMTU,
 		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameExposeMTU).
 		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		sriovAndResourceNameExposeMTU, err)
 
 	By("Creating test pod")

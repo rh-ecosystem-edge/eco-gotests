@@ -424,9 +424,9 @@ var _ = Describe(
 				sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient,
 					srIovNetworkPromiscuous, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
 					srIovPolicyResNameNetDevice).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug)
-				err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+				err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+					"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 					srIovNetworkPromiscuous, err)
 
 				By("Define and create sriov-network with 802.1q S-VLAN")
@@ -807,9 +807,9 @@ func defineAndCreateSrIovNetworkWithQinQ(srIovNetwork, resName, vlanProtocol str
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(
 		APIClient, srIovNetwork, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, resName).
 		WithVlanProto(vlanProtocol).WithVLAN(uint16(vlan)).WithLogLevel(netparam.LogLevelDebug)
-	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		srIovNetwork, err)
 }
 
@@ -1158,9 +1158,9 @@ func defineAndCreateSriovNetworks(sriovNetworkPromiscName, sriovNetworkDot1ADNam
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient,
 		sriovNetworkPromiscName, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
 		sriovResName).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug)
-	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		sriovNetworkPromiscName, err)
 
 	By("Define and create sriov-network with 802.1ad S-VLAN")

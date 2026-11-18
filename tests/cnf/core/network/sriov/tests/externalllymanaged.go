@@ -503,9 +503,9 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					tsparams.TestNamespaceName, sriovAndResourceNameExManagedTrue).
 					WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithVLAN(uint16(testVlan)).
 					WithLogLevel(netparam.LogLevelDebug)
-				err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+				err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+					"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 					sriovAndResourceNameExManagedTrue, err)
 
 				By("Creating test pods and checking connectivity between test pods")
@@ -539,9 +539,9 @@ func createSriovConfiguration(sriovAndResName, sriovInterfaceName string, extern
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
 		tsparams.TestNamespaceName, sriovAndResName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 		WithLogLevel(netparam.LogLevelDebug)
-	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		sriovAndResName, err)
 }
 
