@@ -211,6 +211,46 @@ func (builder *IbguBuilder) WithOadpContent(name string, namespace string) *Ibgu
 	return builder
 }
 
+// WithBackupContent appends the named BackupContent references to the ibuSpec.
+func (builder *IbguBuilder) WithBackupContent(names []string) *IbguBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating IBGU with BackupContent references: %v", names)
+
+	if len(names) == 0 {
+		klog.V(100).Info("The 'names' parameter for BackupContent is empty")
+
+		builder.errorMsg = "backup content names cannot be empty"
+
+		return builder
+	}
+
+	for _, name := range names {
+		if name == "" {
+			klog.V(100).Info("The 'names' parameter contains an empty BackupContent name")
+
+			builder.errorMsg = "backup content names cannot contain empty names"
+
+			return builder
+		}
+	}
+
+	for _, name := range names {
+		backupContent := lcav1.BackupContentRef{
+			Name: name,
+		}
+
+		builder.Definition.Spec.IBUSpec.BackupContent = append(
+			builder.Definition.Spec.IBUSpec.BackupContent,
+			backupContent,
+		)
+	}
+
+	return builder
+}
+
 // WithPlan appends the plan to the ibgu.
 func (builder *IbguBuilder) WithPlan(actions []string, maxConcurrency int, timeout int) *IbguBuilder {
 	if valid, _ := builder.validate(); !valid {
