@@ -129,7 +129,7 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	return "", errors.New("unable to identify ZTP site generate image")
 }
 
-// IsVersionStringInRange reports whether version satisfies minimum <= version < maximumUpper using SemVer 2.0
+// IsVersionStringInRange reports whether version satisfies minimum <= version < maximum using SemVer 2.0
 // (github.com/Masterminds/semver/v3).
 //
 // minimum: empty means no lower bound. For a lower bound that must include pre-releases of X.Y.0 (e.g. OCP
@@ -140,9 +140,14 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 // github.com/Masterminds/semver/v3. Callers must pass semver-compatible strings (e.g. lower bound "4.16.0-0",
 // exclusive upper "4.21.0-0").
 //
-// If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
-// with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
-// version should validate the string separately or pass a non-empty maximum so the result is (false, nil).
+// Empty or whitespace-only version is an explicit error (false, error) fail-closed. This prevents unknown
+// versions (e.g. empty Spoke1OCPVersion when GetOCPVersion fails) from being considered supported when maximum==""
+// legacy no-upper-bound gates. Empty minimum/maximum still mean unbounded — only the value under test (version)
+// is fail-closed on empty. Callers should treat the error as an explicit failure signal.
+//
+// Any other unparsable non-empty version string is treated as out-of-range (false, nil) for backward
+// compatibility with legacy call sites that pass non-semver operator tags. Empty version is the only
+// value-under-test case that returns an error.
 func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 	var minV *semver.Version
 
@@ -166,15 +171,14 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 		maxExclusive = parsed
 	}
 
+	if strings.TrimSpace(version) == "" {
+		return false, fmt.Errorf("version string is empty")
+	}
+
 	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
 	if err != nil {
-		if maximum == "" {
-			klog.V(ranparam.LogLevel).Infof(
-				"IsVersionStringInRange: unparsable version %q, returning (true, nil) for legacy no-upper-bound behavior: %v",
-				version, err)
-
-			return true, nil
-		}
+		klog.V(ranparam.LogLevel).Infof(
+			"IsVersionStringInRange: unparsable version %q treated as out-of-range (false, nil): %v", version, err)
 
 		return false, nil
 	}

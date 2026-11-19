@@ -30,9 +30,9 @@ func TestInitIfaceAliasing(t *testing.T) {
 			wantLegacy: false,
 		},
 		{
-			name:       "unparsable version uses modern naming by default",
+			name:       "unparsable version uses legacy naming (fail-closed)",
 			ptpVersion: "not-a-version",
-			wantLegacy: false,
+			wantLegacy: true,
 		},
 	}
 
