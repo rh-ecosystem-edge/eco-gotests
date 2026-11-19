@@ -100,8 +100,38 @@ func ResetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Ifa
 
 // SetInterfaceStatus sets a given interface to a given state. It will wait up to 15 seconds for the interface to be in
 // the expected state after setting it.
+//
+// Setting an interface down also keeps it down until that interface is set up again. An interface that is already
+// down is left unchanged. NetworkManager is set unmanaged for that device when it was managing it. If the interface
+// is an SR-IOV physical function with virtual functions, the SR-IOV config daemon is unschedulable until the last
+// interface set down is brought back up. The administrative up runs before that daemon is scheduled again. The
+// operational-state wait runs after NetworkManager and the daemon are restored.
 func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Iface, state InterfaceState) error {
-	command := fmt.Sprintf("ip link set %s %s", iface, state)
+	switch state {
+	case InterfaceStateDown:
+		return setInterfaceDown(client, nodeName, iface)
+	case InterfaceStateUp:
+		return setInterfaceUp(client, nodeName, iface)
+	default:
+		return fmt.Errorf("unknown interface state %q", state)
+	}
+}
+
+// setLinkState sets the administrative link state and waits until ip link reports that operational state.
+// Grep returns exit status 1 when the state text is absent, which is retried.
+func setLinkState(client *clients.Settings, nodeName string, ifaceName Iface, state InterfaceState) error {
+	if err := setAdministrativeLinkState(client, nodeName, ifaceName, state); err != nil {
+		return err
+	}
+
+	return waitForLinkOperState(client, nodeName, ifaceName, state)
+}
+
+// setAdministrativeLinkState runs ip link set. It does not wait for the operational state.
+func setAdministrativeLinkState(
+	client *clients.Settings, nodeName string, ifaceName Iface, state InterfaceState,
+) error {
+	command := fmt.Sprintf("ip link set %s %s", ifaceName, state)
 
 	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true))
@@ -109,11 +139,14 @@ func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Iface, 
 		return err
 	}
 
-	// Grep will return 1 if the interface is not found, which will return an error. We retry up to 5 times with a 3
-	// second delay to wait for the interface to be up.
-	command = fmt.Sprintf("ip link show %s | grep \" state %s \"", iface, strings.ToUpper(string(state)))
+	return nil
+}
 
-	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
+// waitForLinkOperState waits until ip link show reports the operational state.
+func waitForLinkOperState(client *clients.Settings, nodeName string, ifaceName Iface, state InterfaceState) error {
+	command := fmt.Sprintf("ip link show %s | grep \" state %s \"", ifaceName, strings.ToUpper(string(state)))
+
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
 		ptpdaemon.WithRetries(5), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryDelay(3*time.Second))
 	if err != nil {
 		return err

@@ -146,3 +146,78 @@ func TestGetUpstreamPortsForProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalHoldoverTimeoutDisabled(t *testing.T) {
+	t.Parallel()
+
+	e825Timeout := func(timeout *uint64) *ptpv1.PtpProfile {
+		t.Helper()
+
+		plugin := ptp.IntelPlugin{Devices: []string{"eno1np0"}}
+		if timeout != nil {
+			plugin.DpllSettings = map[string]uint64{"LocalHoldoverTimeout": *timeout}
+		}
+
+		raw, err := json.Marshal(plugin)
+		require.NoError(t, err)
+
+		return &ptpv1.PtpProfile{
+			Plugins: map[string]*apiextv1.JSON{
+				string(ptp.PluginTypeE825): {Raw: raw},
+			},
+		}
+	}
+
+	zero := uint64(0)
+	fourHours := uint64(14400)
+
+	e830Only, err := json.Marshal(ptp.IntelPlugin{Devices: []string{"enp108s0f0np0"}})
+	require.NoError(t, err)
+
+	e825Zero, err := json.Marshal(ptp.IntelPlugin{
+		Devices:      []string{"eno1np0"},
+		DpllSettings: map[string]uint64{"LocalHoldoverTimeout": 0},
+	})
+	require.NoError(t, err)
+
+	e810Long, err := json.Marshal(ptp.IntelPlugin{
+		DpllSettings: map[string]uint64{"LocalHoldoverTimeout": fourHours},
+	})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		profile *ptpv1.PtpProfile
+		want    bool
+	}{
+		{name: "nil profile", profile: nil, want: false},
+		{name: "no plugins", profile: &ptpv1.PtpProfile{}, want: false},
+		{name: "plugin without the setting", profile: e825Timeout(nil), want: false},
+		{name: "timeout explicitly zero", profile: e825Timeout(&zero), want: true},
+		{name: "timeout four hours", profile: e825Timeout(&fourHours), want: false},
+		{
+			name: "e825 zero is used when e830 has no setting",
+			profile: &ptpv1.PtpProfile{Plugins: map[string]*apiextv1.JSON{
+				string(ptp.PluginTypeE830): {Raw: e830Only},
+				string(ptp.PluginTypeE825): {Raw: e825Zero},
+			}},
+			want: true,
+		},
+		{
+			name: "e810 timeout takes precedence over e825 zero",
+			profile: &ptpv1.PtpProfile{Plugins: map[string]*apiextv1.JSON{
+				string(ptp.PluginTypeE810): {Raw: e810Long},
+				string(ptp.PluginTypeE825): {Raw: e825Zero},
+			}},
+			want: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCase.want, LocalHoldoverTimeoutDisabled(testCase.profile))
+		})
+	}
+}
