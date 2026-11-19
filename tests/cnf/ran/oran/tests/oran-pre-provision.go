@@ -82,11 +82,10 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		})
 
 		AfterEach(func() {
-			By("reclaiming suite ProvisioningRequests and stuck O-Cloud BMHs after pre-provision")
+			By("deleting the suite ProvisioningRequest if it exists")
 
-			err := helper.ReclaimSuiteHardwareLeftovers(HubAPIClient, o2imsAPIClient)
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to reclaim suite ProvisioningRequests and stuck O-Cloud BMHs after pre-provision")
+			err := helper.DeleteSuiteProvisioningRequests(o2imsAPIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete suite ProvisioningRequests after pre-provision")
 		})
 
 		// 83880 - Failed provisioning due to no hardware matching resource selector
@@ -104,13 +103,16 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 			err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to fail due to no matching hardware")
 
-			By("verifying ProvisioningRequest failed")
+			By("verifying failure reason indicates no suitable hardware found")
 
 			currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
 				To(Equal(provisioningv1alpha1.StateFailed),
 					"Expected ProvisioningRequest to fail when no hardware matches the resource selector")
+			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
+				To(ContainSubstring(tsparams.PRNoHardwareMatchDetailsSubstring),
+					"Expected provisioning details to report no matching free hardware")
 		})
 
 		// 83881 - Failed provisioning due to missing boot interface label
@@ -128,13 +130,16 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 			err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to fail due to missing boot interface")
 
-			By("verifying ProvisioningRequest failed")
+			By("verifying failure reason indicates missing boot interface label")
 
 			currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
 				To(Equal(provisioningv1alpha1.StateFailed),
 					"Expected ProvisioningRequest to fail when boot interface label is missing")
+			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
+				To(ContainSubstring(tsparams.PRMissingBootInterfaceDetailsSubstring),
+					"Expected provisioning details to report a missing boot interface MAC assignment")
 		})
 
 		// 83882 - Failed provisioning due to nonexistent hardware profile

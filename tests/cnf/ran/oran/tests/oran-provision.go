@@ -52,18 +52,6 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 			"Lab inventory must have enough Available O-Cloud BMHs before provision tests")
 	})
 
-	AfterEach(func() {
-		if !CurrentSpecReport().Failed() {
-			return
-		}
-
-		By("reclaiming suite hardware leftovers after provision failure")
-
-		err := helper.ReclaimSuiteHardwareLeftovers(HubAPIClient, o2imsAPIClient)
-		Expect(err).ToNot(HaveOccurred(),
-			"Failed to reclaim suite ProvisioningRequests and stuck O-Cloud BMHs after provision failure")
-	})
-
 	// 77393 - Apply a ProvisioningRequest with missing required input parameter
 	It("recovers provisioning when invalid ProvisioningRequest is updated", reportxml.ID("77393"), func() {
 		var prBuilder *oran.ProvisioningRequestBuilder
@@ -106,6 +94,12 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 
 		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
+
+		details := prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails
+		Expect(details).To(Or(
+			ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
+			ContainSubstring(tsparams.PRValidationFailedDetailsSubstringAlt),
+		), "Expected provisioning details to report a validation failure")
 
 		updateTime := time.Now()
 
@@ -228,6 +222,12 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 	if status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFulfilled {
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("expected provisioning phase %q, got %q",
 			provisioningv1alpha1.StateFulfilled, status.ProvisioningStatus.ProvisioningPhase))
+	}
+
+	if !strings.Contains(status.ProvisioningStatus.ProvisioningDetails, tsparams.PRFulfilledDetailsSubstring) {
+		accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+			"expected provisioning details to contain %q, got %q",
+			tsparams.PRFulfilledDetailsSubstring, status.ProvisioningStatus.ProvisioningDetails))
 	}
 
 	By("verifying the ProvisionedResources are set")

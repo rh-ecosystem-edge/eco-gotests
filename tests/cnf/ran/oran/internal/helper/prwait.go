@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -115,7 +116,7 @@ func snapshotPRStatus(pr *oran.ProvisioningRequestBuilder) prStatusSnapshot {
 	return prStatusSnapshot{
 		phase:      string(status.ProvisioningStatus.ProvisioningPhase),
 		details:    status.ProvisioningStatus.ProvisioningDetails,
-		conditions: append([]metav1.Condition(nil), status.Conditions...),
+		conditions: slices.Clone(status.Conditions),
 	}
 }
 
@@ -208,6 +209,12 @@ func WaitForPRCondition(
 				}
 			}
 
+			if snap.phase == string(provisioningv1alpha1.StateFailed) {
+				return false, fmt.Errorf(
+					"ProvisioningRequest %s entered phase failed while waiting for condition type=%q: %s",
+					prName, expected.Type, snap.details)
+			}
+
 			return false, nil
 		})
 	if err == nil {
@@ -217,6 +224,13 @@ func WaitForPRCondition(
 	snap := lastSnap
 	if prBuilder.Object != nil {
 		snap = snapshotPRStatus(prBuilder)
+	}
+
+	// Prefer the early-exit failed-phase error over a generic timeout wrapper.
+	if snap.phase == string(provisioningv1alpha1.StateFailed) {
+		return fmt.Errorf(
+			"ProvisioningRequest %s entered phase failed while waiting for condition type=%q status=%q reason=%q: %s",
+			prName, expected.Type, expected.Status, expected.Reason, snap.details)
 	}
 
 	timeoutErr := FormatPRWaitTimeoutError(prName, expected, timeout, snap.phase, snap.details, snap.conditions)
