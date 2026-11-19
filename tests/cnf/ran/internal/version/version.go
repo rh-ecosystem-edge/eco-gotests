@@ -129,25 +129,9 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	return "", errors.New("unable to identify ZTP site generate image")
 }
 
-// IsVersionStringInRange reports whether version satisfies minimum <= version < maximum using SemVer 2.0
-// (github.com/Masterminds/semver/v3).
-//
-// minimum: empty means no lower bound. For a lower bound that must include pre-releases of X.Y.0 (e.g. OCP
-// 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
-//
-// maximum: empty means no upper bound. Otherwise maximum is exclusive: the interval is minimum <= v < maximum
-// (half-open). Non-empty bounds use the same rules as version: trim an optional leading v, then parse with
-// github.com/Masterminds/semver/v3. Callers must pass semver-compatible strings (e.g. lower bound "4.16.0-0",
-// exclusive upper "4.21.0-0").
-//
-// Empty or whitespace-only version is an explicit error (false, error) fail-closed. This prevents unknown
-// versions (e.g. empty Spoke1OCPVersion when GetOCPVersion fails) from being considered supported when maximum==""
-// legacy no-upper-bound gates. Empty minimum/maximum still mean unbounded — only the value under test (version)
-// is fail-closed on empty. Callers should treat the error as an explicit failure signal.
-//
-// Any other unparsable non-empty version string is treated as out-of-range (false, nil) for backward
-// compatibility with legacy call sites that pass non-semver operator tags. Empty version is the only
-// value-under-test case that returns an error.
+// IsVersionStringInRange reports whether version satisfies minimum <= version < maximum.
+// Empty minimum or maximum means unbounded. Empty or unparsable version returns (false, error).
+// Versions are parsed as semver after trimming whitespace and an optional leading "v".
 func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 	var minV *semver.Version
 
@@ -171,16 +155,9 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 		maxExclusive = parsed
 	}
 
-	if strings.TrimSpace(version) == "" {
-		return false, fmt.Errorf("version string is empty")
-	}
-
 	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
 	if err != nil {
-		klog.V(ranparam.LogLevel).Infof(
-			"IsVersionStringInRange: unparsable version %q treated as out-of-range (false, nil): %v", version, err)
-
-		return false, nil
+		return false, fmt.Errorf("invalid version %q: %w", version, err)
 	}
 
 	if minV != nil && parsedVersion.LessThan(minV) {

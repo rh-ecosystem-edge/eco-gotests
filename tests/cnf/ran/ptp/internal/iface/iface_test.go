@@ -13,6 +13,7 @@ func TestInitIfaceAliasing(t *testing.T) {
 		name       string
 		ptpVersion string
 		wantLegacy bool
+		wantErr    bool
 	}{
 		{
 			name:       "PTP 4.19 uses legacy naming",
@@ -30,15 +31,22 @@ func TestInitIfaceAliasing(t *testing.T) {
 			wantLegacy: false,
 		},
 		{
-			name:       "unparsable version uses legacy naming (fail-closed)",
+			name:       "unparsable version returns error",
 			ptpVersion: "not-a-version",
-			wantLegacy: true,
+			wantErr:    true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := InitIfaceAliasingByParsing(testCase.ptpVersion)
+			if testCase.wantErr {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, "invalid version")
+
+				return
+			}
+
 			assert.NoError(t, err)
 			assert.Equal(t, testCase.wantLegacy, useLegacyNICNaming)
 		})
