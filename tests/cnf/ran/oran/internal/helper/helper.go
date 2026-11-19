@@ -3,9 +3,11 @@ package helper
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
@@ -156,11 +158,38 @@ func WaitForAlarmToExist(
 	alarmsClient *oranapi.AlarmsClient,
 	matchingExtensions map[string]string,
 	timeout time.Duration) (*oranapi.AlarmEventRecord, error) {
-	var matchingAlarm *oranapi.AlarmEventRecord
+	return waitForAlarmToExist(func() ([]oranapi.AlarmEventRecord, error) {
+		return alarmsClient.ListAlarms()
+	}, func(alarm oranapi.AlarmEventRecord) map[string]any {
+		return alarm.Extensions
+	}, matchingExtensions, timeout)
+}
+
+// WaitForAlarmV2ToExist waits up to timeout for the first v2 alarm with all the matching extension key-value pairs.
+// The returned alarm is guaranteed to be non-nil if error is nil.
+func WaitForAlarmV2ToExist(
+	alarmsClient *oranapi.AlarmsV2Client,
+	matchingExtensions map[string]string,
+	timeout time.Duration) (*oranapi.AlarmEventRecordV2, error) {
+	return waitForAlarmToExist(func() ([]oranapi.AlarmEventRecordV2, error) {
+		return alarmsClient.ListAlarms()
+	}, func(alarm oranapi.AlarmEventRecordV2) map[string]any {
+		return alarm.Extensions
+	}, matchingExtensions, timeout)
+}
+
+// waitForAlarmToExist polls the supplied list function until it finds an alarm with matching extensions.
+func waitForAlarmToExist[T any](
+	list func() ([]T, error),
+	extensions func(T) map[string]any,
+	matchingExtensions map[string]string,
+	timeout time.Duration,
+) (*T, error) {
+	var matchingAlarm *T
 
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			alarms, err := alarmsClient.ListAlarms()
+			alarms, err := list()
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list alarms: %v", err)
 
@@ -168,7 +197,7 @@ func WaitForAlarmToExist(
 			}
 
 			for _, alarm := range alarms {
-				if matchesExtensions(alarm.Extensions, matchingExtensions) {
+				if matchesExtensions(extensions(alarm), matchingExtensions) {
 					matchingAlarm = &alarm
 
 					return true, nil
@@ -186,7 +215,7 @@ func WaitForAlarmToExist(
 
 // matchesExtensions returns true if each key-value pair in matchingExtensions is a key-value pair in the extensions
 // map. Keys not in matchingExtensions are ignored.
-func matchesExtensions(extensions map[string]interface{}, matchingExtensions map[string]string) bool {
+func matchesExtensions(extensions map[string]any, matchingExtensions map[string]string) bool {
 	for key, value := range matchingExtensions {
 		if extensionValue, ok := extensions[key].(string); !ok || extensionValue != value {
 			return false
@@ -206,6 +235,43 @@ func WaitForAllNotifications(
 	startTime time.Time,
 	expectedTrackers map[string]bool,
 	timeout time.Duration) error {
+	return waitForAllNotifications(client, namespace, observerID, startTime, expectedTrackers, timeout,
+		func(notification *oranapi.AlarmEventNotification) map[string]any {
+			return notification.Extensions
+		})
+}
+
+// WaitForNewNodeClusterNotificationsV2 waits up to timeout for the mock SMO observer to receive a NEW NodeCluster
+// notification for each expected tracker. It removes received trackers from expectedTrackers in place, leaving the
+// map empty when all trackers have been received.
+func WaitForNewNodeClusterNotificationsV2(
+	client *clients.Settings,
+	namespace string,
+	observerID string,
+	startTime time.Time,
+	expectedTrackers map[string]bool,
+	timeout time.Duration) error {
+	return waitForAllNotifications(client, namespace, observerID, startTime, expectedTrackers, timeout,
+		func(notification *oranapi.AlarmEventNotificationV2) map[string]any {
+			if notification.NotificationEventType != oranapi.AlarmEventNotificationTypeV2NEW ||
+				notification.ObjectClass != tsparams.NodeClusterObjectClass {
+				return nil
+			}
+
+			return notification.Extensions
+		})
+}
+
+// waitForAllNotifications polls the mock SMO observer and removes trackers found in the selected extensions.
+func waitForAllNotifications[T any](
+	client *clients.Settings,
+	namespace string,
+	observerID string,
+	startTime time.Time,
+	expectedTrackers map[string]bool,
+	timeout time.Duration,
+	extensions func(*T) map[string]any,
+) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			// Set the new start time to right before we check so there is no risk of missing a
@@ -213,7 +279,7 @@ func WaitForAllNotifications(
 			// duplicates.
 			newStartTime := time.Now()
 
-			receivedNotifications, err := mocksmo.ListReceived[oranapi.AlarmEventNotification](
+			receivedNotifications, err := mocksmo.ListReceived[T](
 				client, namespace, startTime, observerID)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
@@ -222,7 +288,7 @@ func WaitForAllNotifications(
 			}
 
 			for _, notification := range receivedNotifications {
-				if tracker, ok := notification.Extensions["tracker"].(string); ok {
+				if tracker, ok := extensions(notification)["tracker"].(string); ok {
 					klog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
 
 					delete(expectedTrackers, tracker)
@@ -235,4 +301,21 @@ func WaitForAllNotifications(
 
 			return len(expectedTrackers) == 0, nil
 		})
+}
+
+// AlarmSubscriptionV2Exists checks whether the server still has the subscription with the given ID.
+func AlarmSubscriptionV2Exists(client *oranapi.AlarmsV2Client, subscriptionID uuid.UUID) (bool, error) {
+	response, err := client.GetSubscriptionWithResponse(context.TODO(), subscriptionID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get alarm subscription %s: %w", subscriptionID, err)
+	}
+
+	switch response.StatusCode() {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected status for alarm subscription %s: %d", subscriptionID, response.StatusCode())
+	}
 }

@@ -30,6 +30,9 @@ const (
 const (
 	// O2IMSNamespace is the namespace used by the oran-o2ims operator.
 	O2IMSNamespace = "oran-o2ims"
+
+	// NodeClusterObjectClass identifies cluster alarms in the O2IMS v2 API.
+	NodeClusterObjectClass = "oran.o2ims.cluster.NodeCluster"
 	// ClusterInstanceParamsKey is the key in the TemplateParameters map for the ClusterInstance parameters.
 	ClusterInstanceParamsKey = "clusterInstanceParameters"
 	// PolicyTemplateParamsKey is the key in the TemplateParameters map for the policy template parameters.
