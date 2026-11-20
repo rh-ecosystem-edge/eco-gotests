@@ -25,7 +25,7 @@ import (
 	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
 )
 
-var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, tsparams.LabelClusterAPI), func() {
+var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelClusterAPI), func() {
 	var clusterClient *oranapi.ClusterClient
 
 	BeforeEach(func() {

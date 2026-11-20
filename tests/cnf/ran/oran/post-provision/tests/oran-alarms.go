@@ -28,7 +28,7 @@ import (
 // mockSMOBaseURL is the base URL of the mock SMO, including the scheme.
 var mockSMOBaseURL = "https://" + RANConfig.GetAppsURL(RANConfig.MockSMOSubdomain)
 
-var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparams.LabelAlarms), func() {
+var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelAlarms), func() {
 	var (
 		alarmsClient    *oranapi.AlarmsClient
 		alertsClient    *alertmanagerv2.AlertmanagerAPI

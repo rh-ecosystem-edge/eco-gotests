@@ -31,7 +31,7 @@ import (
 
 const spokeNodesReadyTimeout = 30 * time.Minute
 
-var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered, ContinueOnFailure, func() {
+var _ = Describe("ORAN Provision Tests", Ordered, ContinueOnFailure, func() {
 	var o2imsAPIClient runtimeclient.Client
 
 	BeforeEach(func() {

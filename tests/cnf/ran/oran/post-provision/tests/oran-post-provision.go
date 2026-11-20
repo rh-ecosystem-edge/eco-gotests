@@ -18,7 +18,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision), func() {
+var _ = Describe("ORAN Post-provision Tests", func() {
 	var (
 		prBuilder      *oran.ProvisioningRequestBuilder
 		originalPRSpec *provisioningv1alpha1.ProvisioningRequestSpec
@@ -61,7 +61,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull the ProvisioningRequest again")
 
-		restoreTime := getStartTime()
+		restoreTime := helper.GetStartTime()
 
 		By("restoring the original ProvisioningRequest spec")
 
@@ -120,7 +120,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 			tsparams.TestName: tsparams.TestNewValue,
 		})
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 		prBuilder, err := prBuilder.Update()
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
@@ -152,7 +152,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		By("verifying the test ConfigMap exists and has the original value")
 		verifyCM(tsparams.TestName, tsparams.TestOriginalValue)
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 
 		By("updating the ProvisioningRequest TemplateVersion")
 
@@ -179,7 +179,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		_, err := configmap.Pull(Spoke1APIClient, tsparams.TestName2, tsparams.TestName)
 		Expect(err).To(HaveOccurred(), "Second test ConfigMap already exists on spoke 1")
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 
 		By("updating the ProvisioningRequest TemplateVersion")
 
@@ -214,7 +214,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		_, err := configmap.Pull(Spoke1APIClient, tsparams.TestName2, tsparams.TestName)
 		Expect(err).To(HaveOccurred(), "Second test ConfigMap already exists on spoke 1")
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 
 		By("updating the ProvisioningRequest TemplateVersion")
 
@@ -305,19 +305,4 @@ func waitForLabels() {
 
 	_, err = mcl.WaitForLabel(tsparams.TestName, 2*time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for spoke 1 ManagedCluster to have the label")
-}
-
-// getStartTime saves the current time, waits until the next second, then returns the saved time. Since Kubernetes only
-// serializes times with second precision, it is impossible to order times within a second. Adding a delay is necessary
-// to ensure WaitForPhaseAfter does not produce false negatives when the ProvisioningRequest transitions from Fulfilled
-// to Pending to Fulfilled within the same second as the call to time.Now().
-func getStartTime() time.Time {
-	startTime := time.Now()
-
-	// Since we cannot verify that a second starts at the same time on the cluster versus the test executor, it is
-	// most reliable to wait for two seconds to ensure that the time we count as starting is almost certainly not
-	// the same time this function returns on both machines.
-	time.Sleep(2 * time.Second)
-
-	return startTime
 }
