@@ -58,8 +58,8 @@ else
         # If any features were found, add them to the feature_dirs array.
         if ((${#discovered_features[@]})); then
             feature_dirs+=("${discovered_features[@]}")
-        elif [[ "${ECO_VERBOSE_SCRIPT:-}" == "true" ]]; then
-            echo "Could not find any feature directories matching ${feature}"
+        else
+            echo "WARNING: no test directories found matching feature '${feature}'" >&2
         fi
     done
 
