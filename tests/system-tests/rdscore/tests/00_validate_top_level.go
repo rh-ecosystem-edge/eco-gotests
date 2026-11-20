@@ -133,6 +133,46 @@ var _ = Describe(
 				Label("mount-ns", "mount-ns-cnf"), reportxml.ID("75833"),
 				rdscorecommon.VerifyMountNamespaceOnCNFMCP)
 
+			It("Validates PerformanceProfile systemReserved configuration",
+				Label("systemreserved", "systemreserved-validation"),
+				reportxml.ID("90692"),
+				rdscorecommon.ValidatePerformanceProfileSystemReserved)
+
+			It("Validates systemReserved in /etc/node-sizing.env on control plane nodes",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-cp"),
+				reportxml.ID("90693"),
+				rdscorecommon.ValidateControlPlaneNodeSystemReserved)
+
+			It("Validates systemReserved in /etc/node-sizing.env on worker nodes",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-worker"),
+				reportxml.ID("90694"),
+				rdscorecommon.ValidateWorkerNodeSystemReserved)
+
+			It("Validates control plane node allocatable capacity with systemReserved",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-allocatable-cp"),
+				reportxml.ID("90695"),
+				rdscorecommon.ValidateControlPlaneNodeAllocatable)
+
+			It("Validates worker node allocatable capacity with systemReserved",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-allocatable-worker"),
+				reportxml.ID("90696"),
+				rdscorecommon.ValidateWorkerNodeAllocatable)
+
+			It("Validates systemReserved enforcement on control plane nodes",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-enforcement-cp"),
+				reportxml.ID("90697"),
+				rdscorecommon.ValidateControlPlaneNodeEnforcement)
+
+			It("Validates systemReserved enforcement on worker nodes",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-enforcement-worker"),
+				reportxml.ID("90698"),
+				rdscorecommon.ValidateWorkerNodeEnforcement)
+
+			It("Validates systemReserved values meet scale lab baseline requirements",
+				Label("systemreserved", "systemreserved-validation", "systemreserved-baseline"),
+				reportxml.ID("90699"),
+				rdscorecommon.ValidateScaleLabBaseline)
+
 			It("Verifies SR-IOV workloads on same node and different SR-IOV networks",
 				Label("sriov", "sriov-same-node-different-nets"),
 				reportxml.ID("81002"), MustPassRepeatedly(3),
