@@ -7,6 +7,7 @@ import (
 	"time"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imageregistry"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
@@ -43,6 +44,41 @@ func WaitForPolicyToExist(
 		})
 
 	return policy, err
+}
+
+// WaitForApplicationConditionMessage waits for up to the specified timeout until the Argo CD application has a
+// condition whose message contains any of the expected messages.
+func WaitForApplicationConditionMessage(
+	app *argocd.ApplicationBuilder, timeout time.Duration, expectedMessages ...string) error {
+	if len(expectedMessages) == 0 {
+		return fmt.Errorf("at least one expected condition message is required")
+	}
+
+	var err error
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), tsparams.ArgoCdChangeInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			app.Object, err = app.Get()
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof(
+					"Failed to get Argo CD Application %s in namespace %s: %v",
+					app.Definition.Name, app.Definition.Namespace, err)
+
+				return false, nil
+			}
+
+			for _, condition := range app.Object.Status.Conditions {
+				for _, expectedMessage := range expectedMessages {
+					if strings.Contains(condition.Message, expectedMessage) {
+						return true, nil
+					}
+				}
+			}
+
+			return false, nil
+		})
+
+	return err
 }
 
 // WaitForServiceAccountToExist waits for up to the specified timeout until the service account exists.
