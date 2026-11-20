@@ -160,7 +160,11 @@ func CheckSpokeClusterType(client *clients.Settings) (ranparam.ClusterType, erro
 		return ranparam.SNOCluster, nil
 	}
 
-	return ranparam.HighlyAvailableCluster, fmt.Errorf("could not determine spoke cluster type")
+	if len(controlPlaneNodesList) > 1 {
+		return ranparam.HighlyAvailableCluster, nil
+	}
+
+	return "", fmt.Errorf("could not determine spoke cluster type: no control plane nodes found")
 }
 
 // DoesClusterLabelExist looks for a label on a managed cluster and returns true if it exists.

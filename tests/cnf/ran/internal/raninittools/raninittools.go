@@ -1,6 +1,8 @@
 package raninittools
 
 import (
+	"fmt"
+
 	"github.com/onsi/ginkgo/v2" //nolint:depguard // necessary for logging
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -38,4 +40,20 @@ func init() {
 	HubAPIClient = RANConfig.HubAPIClient
 	Spoke2APIClient = RANConfig.Spoke2APIClient
 	BMCClient = RANConfig.Spoke1BMC
+}
+
+// SetSpoke1APIClient replaces the spoke client after its admin kubeconfig is refreshed.
+func SetSpoke1APIClient(client *clients.Settings) error {
+	if client == nil {
+		return fmt.Errorf("spoke API client cannot be nil")
+	}
+
+	Spoke1APIClient = client
+	inittools.APIClient = client
+	if RANConfig != nil && RANConfig.Spoke1Config != nil {
+		RANConfig.Spoke1Config.Spoke1APIClient = client
+		RANConfig.Spoke1Config.Spoke1Kubeconfig = client.KubeconfigPath
+	}
+
+	return nil
 }
