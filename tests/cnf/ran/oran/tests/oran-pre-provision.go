@@ -73,14 +73,19 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		})
 
 	When("a ProvisioningRequest is created", func() {
-		AfterEach(func() {
-			By("deleting the ProvisioningRequest if it exists")
+		BeforeEach(func() {
+			By("ensuring free O-Cloud BareMetalHost inventory for pre-provision")
 
-			prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
-			if err == nil {
-				err := prBuilder.DeleteAndWait(10 * time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete the ProvisioningRequest")
-			}
+			err := helper.EnsureFreeInventoryForProvision(HubAPIClient, o2imsAPIClient)
+			Expect(err).ToNot(HaveOccurred(),
+				"Lab inventory must have enough Available O-Cloud BMHs before pre-provision PR tests")
+		})
+
+		AfterEach(func() {
+			By("deleting the suite ProvisioningRequest if it exists")
+
+			err := helper.DeleteSuiteProvisioningRequests(o2imsAPIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete suite ProvisioningRequests after pre-provision")
 		})
 
 		// 83880 - Failed provisioning due to no hardware matching resource selector
@@ -103,7 +108,8 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 			currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
-				To(Equal(provisioningv1alpha1.StateFailed))
+				To(Equal(provisioningv1alpha1.StateFailed),
+					"Expected ProvisioningRequest to fail when no hardware matches the resource selector")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
 				To(ContainSubstring(tsparams.PRNoHardwareMatchDetailsSubstring),
 					"Expected provisioning details to report no matching free hardware")
@@ -129,7 +135,8 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 			currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
-				To(Equal(provisioningv1alpha1.StateFailed))
+				To(Equal(provisioningv1alpha1.StateFailed),
+					"Expected ProvisioningRequest to fail when boot interface label is missing")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
 				To(ContainSubstring(tsparams.PRMissingBootInterfaceDetailsSubstring),
 					"Expected provisioning details to report a missing boot interface MAC assignment")
