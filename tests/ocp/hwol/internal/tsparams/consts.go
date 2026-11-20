@@ -4,8 +4,8 @@ package tsparams
 import "time"
 
 const (
-	// TestNamespaceName is the namespace where HWOL test cases are performed.
-	TestNamespaceName = "hwol-tests"
+	// TestNamespacePrefix is used for a unique namespace per HWOL suite run.
+	TestNamespacePrefix = "hwol-tests-"
 	// LabelSuite represents the HWOL suite label for test selection.
 	LabelSuite = "ocphwol"
 	// LabelSetup represents the setup/smoke test label for filtering.
@@ -64,4 +64,6 @@ const (
 	TestResourceLabelKey = "eco-gotests.openshift.io/test"
 	// TestResourceLabelValue is the label value for test-created resources.
 	TestResourceLabelValue = "ocp-hwol"
+	// TestRunLabelKey distinguishes resources created by one suite execution.
+	TestRunLabelKey = "eco-gotests.openshift.io/run-id"
 )
