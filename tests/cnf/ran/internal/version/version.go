@@ -129,20 +129,9 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	return "", errors.New("unable to identify ZTP site generate image")
 }
 
-// IsVersionStringInRange reports whether version satisfies minimum <= version < maximumUpper using SemVer 2.0
-// (github.com/Masterminds/semver/v3).
-//
-// minimum: empty means no lower bound. For a lower bound that must include pre-releases of X.Y.0 (e.g. OCP
-// 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
-//
-// maximum: empty means no upper bound. Otherwise maximum is exclusive: the interval is minimum <= v < maximum
-// (half-open). Non-empty bounds use the same rules as version: trim an optional leading v, then parse with
-// github.com/Masterminds/semver/v3. Callers must pass semver-compatible strings (e.g. lower bound "4.16.0-0",
-// exclusive upper "4.21.0-0").
-//
-// If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
-// with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
-// version should validate the string separately or pass a non-empty maximum so the result is (false, nil).
+// IsVersionStringInRange reports whether version satisfies minimum <= version < maximum.
+// Empty minimum or maximum means unbounded. Empty or unparsable version returns (false, error).
+// Versions are parsed as semver after trimming whitespace and an optional leading "v".
 func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 	var minV *semver.Version
 
@@ -168,15 +157,7 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 
 	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
 	if err != nil {
-		if maximum == "" {
-			klog.V(ranparam.LogLevel).Infof(
-				"IsVersionStringInRange: unparsable version %q, returning (true, nil) for legacy no-upper-bound behavior: %v",
-				version, err)
-
-			return true, nil
-		}
-
-		return false, nil
+		return false, fmt.Errorf("invalid version %q: %w", version, err)
 	}
 
 	if minV != nil && parsedVersion.LessThan(minV) {
