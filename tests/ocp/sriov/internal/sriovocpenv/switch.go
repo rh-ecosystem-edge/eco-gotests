@@ -126,6 +126,10 @@ func (j *Junos) Commit() error {
 
 // Config sends commands to a Juniper switch.
 func (j *Junos) Config(commands []string) error {
+	return j.config(commands, false)
+}
+
+func (j *Junos) config(commands []string, ignoreMissingStatementWarning bool) error {
 	command := fmt.Sprintf(rpcConfigStringSet, strings.Join(commands, "\n"))
 
 	reply, err := j.Session.Exec(netconf.RawMethod(command))
@@ -133,8 +137,13 @@ func (j *Junos) Config(commands []string) error {
 		return err
 	}
 
-	if len(reply.Errors) > 0 {
-		return errors.New(reply.Errors[0].Message)
+	for _, rpcErr := range reply.Errors {
+		if ignoreMissingStatementWarning && rpcErr.Severity == "warning" &&
+			strings.Contains(strings.ToLower(rpcErr.Message), "statement not found") {
+			continue
+		}
+
+		return errors.New(rpcErr.Message)
 	}
 
 	err = j.Commit()
@@ -198,7 +207,7 @@ func (j *Junos) IsSwitchInterfaceUp(switchInterface string) (bool, error) {
 	return interfaceStatus.InterfaceInformation[0].PhysicalInterface[0].OperStatus[0].Data == "up", nil
 }
 
-// GetInterfaceConfig returns configuration for given interface.
+// GetInterfaceConfig returns the configuration for an interface, or an empty string if it has no saved config.
 func (j *Junos) GetInterfaceConfig(switchInterface string) (string, error) {
 	command := fmt.Sprintf(rpcGetInterfaceConfig, switchInterface)
 
@@ -214,10 +223,29 @@ func (j *Junos) GetInterfaceConfig(switchInterface string) (string, error) {
 	}
 
 	if reply.Data == "" {
-		return "", errors.New("no output available, please check the syntax of your command")
+		return "", nil
 	}
 
-	return reply.Data, nil
+	var config struct {
+		Interfaces struct {
+			Interface []struct {
+				Name string `xml:"name"`
+			} `xml:"interface"`
+		} `xml:"interfaces"`
+	}
+	if err := xml.Unmarshal([]byte(reply.Data), &config); err != nil {
+		return "", fmt.Errorf("failed to parse config for interface %s: %w", switchInterface, err)
+	}
+
+	for _, iface := range config.Interfaces.Interface {
+		if iface.Name == switchInterface {
+			return reply.Data, nil
+		}
+	}
+
+	// A successful filtered query with no interface entry means the interface has no saved config.
+	// Junos can return either an empty data element or an empty configuration for this case.
+	return "", nil
 }
 
 // ApplyConfigInterface replaces a switch interface configuration from saved XML.
@@ -254,9 +282,7 @@ func (j *Junos) SaveInterfaceConfigs(interfaces []string) ([]string, error) {
 	for _, iface := range interfaces {
 		config, err := j.GetInterfaceConfig(iface)
 		if err != nil {
-			klog.V(90).Infof("Failed to get config for interface %s: %v", iface, err)
-
-			continue
+			return nil, fmt.Errorf("failed to get config for interface %s: %w", iface, err)
 		}
 
 		if config != "" {
@@ -307,7 +333,7 @@ func (j *Junos) DisableLACP(lacpInterfaces, physicalInterfaces []string) error {
 		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
 	}
 
-	err := j.Config(commands)
+	err := j.config(commands, true)
 	if err != nil {
 		return fmt.Errorf("failed to execute switch cleanup commands: %w", err)
 	}
