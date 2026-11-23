@@ -61,8 +61,10 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
-	// 81205 - checks FREERUN status are generated for dpll process for RX interface and GM process for TX interface
-	It("checks FREERUN status are generated for dpll process for RX interface and GM process for TX interface",
+	// 81205 - checks sync loss is generated for dpll process for RX interface and FREERUN for GM process for TX
+	// interface, and all clocks relock after reconnect
+	It("checks sync loss is generated for dpll process for RX interface and FREERUN for GM process for TX interface,"+
+		" and all clocks relock after reconnect",
 		reportxml.ID("81205"), func() {
 			testRanAtLeastOnce := false
 
@@ -102,8 +104,6 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 					continue
 				}
 
-				testRanAtLeastOnce = true
-
 				txInterface, err := profiles.GetGmInterfaceToGPS(gmProfile, gmProfileInfo.HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get TX (GPS) interface for node %s", nodeName)
 
@@ -112,24 +112,67 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 
 				smaPinNames := make(map[string]string)
 				smaConfigs := make(map[string]string)
+				// The control mechanism is resolved per interface, not per node: the sysfs probe globs
+				// /sys/class/net/<iface>/..., so two RX interfaces on the same node can in principle
+				// resolve differently.
+				smaCapabilities := make(map[string]sma.Capability)
+				// Resolve every SMA pin and confirm it can actually be controlled before touching any of
+				// them, so that a node where neither sysfs nor a dpll CLI is available is passed over
+				// instead of being left with a half disconnected set of pins. Infrastructure errors are fatal.
+				var discoveryError error
+
+				nodeSupported := true
 
 				for _, rxIface := range rxInterfaces {
 					pinName, config, err := profiles.GetSmaPinFromProfile(gmProfile, rxIface)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to get SMA pin for interface %s on node %s", rxIface, nodeName)
 
+					capability, err := sma.GetCapability(RANConfig.Spoke1APIClient, nodeName, rxIface, pinName)
+					if err != nil {
+						discoveryError = err
+						nodeSupported = false
+
+						break
+					}
+
+					if capability == sma.CapabilityNone {
+						klog.V(tsparams.LogLevel).Infof(
+							"Skipping node %s: cannot control SMA pin %s for interface %s",
+							nodeName, pinName, rxIface)
+
+						nodeSupported = false
+
+						break
+					}
+
 					smaPinNames[string(rxIface)] = pinName
 					smaConfigs[string(rxIface)] = config
+					smaCapabilities[string(rxIface)] = capability
 
 					klog.V(tsparams.LogLevel).Infof(
-						"Node %s interface %s: pin %s, config %s", nodeName, rxIface, pinName, config)
+						"Node %s interface %s: pin %s, config %s, controlled via %s",
+						nodeName, rxIface, pinName, config, capability)
 				}
+
+				if discoveryError != nil {
+					Fail(fmt.Sprintf("Failed to discover SMA capability on node %s: %v", nodeName, discoveryError))
+				}
+
+				if !nodeSupported {
+					continue
+				}
+
+				testRanAtLeastOnce = true
 
 				for _, rxIface := range rxInterfaces {
 					pinName := smaPinNames[string(rxIface)]
+					smaConfig := smaConfigs[string(rxIface)]
+					capability := smaCapabilities[string(rxIface)]
 
 					DeferCleanup(func() {
-						connected, err := sma.IsSmaConnected(RANConfig.Spoke1APIClient, nodeName, rxIface, pinName)
+						connected, err := sma.IsSmaConnectedWithCapability(
+							RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, capability)
 						if err != nil {
 							klog.V(tsparams.LogLevel).Infof(
 								"Failed to check SMA connection for %s on node %s: %v", rxIface, nodeName, err)
@@ -138,8 +181,8 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 						}
 
 						if !connected {
-							err = sma.ReconnectSma(
-								RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, smaConfigs[string(rxIface)])
+							err = sma.ReconnectSmaWithCapability(
+								RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, smaConfig, capability)
 							if err != nil {
 								klog.V(tsparams.LogLevel).Infof(
 									"Failed to reconnect SMA for %s on node %s: %v", rxIface, nodeName, err)
@@ -149,11 +192,13 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 
 					By(fmt.Sprintf("disconnecting %s for interface %s on node %s", pinName, rxIface, nodeName))
 
-					err = sma.DisconnectSma(RANConfig.Spoke1APIClient, nodeName, rxIface, pinName)
+					err = sma.DisconnectSmaWithCapability(
+						RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, capability)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to disconnect SMA %s for interface %s on node %s", pinName, rxIface, nodeName)
 
-					connected, err := sma.IsSmaConnected(RANConfig.Spoke1APIClient, nodeName, rxIface, pinName)
+					connected, err := sma.IsSmaConnectedWithCapability(
+						RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, capability)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to check SMA connection status for %s on node %s", rxIface, nodeName)
 					Expect(connected).To(BeFalse(),
@@ -163,22 +208,27 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 						"Node %s interface %s %s connected: %v, expected: false",
 						nodeName, rxIface, pinName, connected)
 
+					// The follower DPLL is only required to leave LOCKED. Whether it lands in HOLDOVER or
+					// FREERUN depends on the hardware holdover timeout, which on the E810 is
+					// LocalHoldoverTimeout 14400 (4 hours) for a recently locked interface, so requiring
+					// FREERUN here would always time out. See CNF-29319 for details.
 					By(fmt.Sprintf(
-						"waiting for FREERUN clock state for dpll process on RX interface %s", rxIface))
+						"waiting for a not LOCKED clock state for dpll process on RX interface %s", rxIface))
 
-					err = metrics.AssertQuery(
+					err = metrics.AssertQueryAnyOf(
 						context.TODO(),
 						prometheusAPI,
 						metrics.ClockStateQuery{
 							Interface: metrics.Equals(rxIface.GetAlias()),
 							Process:   metrics.DoesNotEqual(metrics.ProcessTS2PHC),
 						},
-						metrics.ClockStateFreerun,
+						[]metrics.PtpClockState{metrics.ClockStateHoldover, metrics.ClockStateFreerun},
 						metrics.AssertWithTimeout(1*time.Minute),
 						metrics.AssertWithPollInterval(5*time.Second),
 					)
 					Expect(err).ToNot(HaveOccurred(),
-						"Failed to wait for FREERUN clock state on RX interface %s for node %s", rxIface, nodeName)
+						"Failed to wait for HOLDOVER or FREERUN clock state on RX interface %s for node %s",
+						rxIface, nodeName)
 
 					By(fmt.Sprintf(
 						"waiting for FREERUN clock state for GM process on TX interface %s", txInterface))
@@ -201,12 +251,13 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 
 					By(fmt.Sprintf("reconnecting %s for RX interface %s on node %s", pinName, rxIface, nodeName))
 
-					err = sma.ReconnectSma(
-						RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, smaConfigs[string(rxIface)])
+					err = sma.ReconnectSmaWithCapability(
+						RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, smaConfig, capability)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to reconnect SMA %s for interface %s on node %s", pinName, rxIface, nodeName)
 
-					connected, err = sma.IsSmaConnected(RANConfig.Spoke1APIClient, nodeName, rxIface, pinName)
+					connected, err = sma.IsSmaConnectedWithCapability(
+						RANConfig.Spoke1APIClient, nodeName, rxIface, pinName, capability)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to check SMA connection status for %s on node %s", rxIface, nodeName)
 					Expect(connected).To(BeTrue(),
@@ -215,6 +266,13 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 					klog.V(tsparams.LogLevel).Infof(
 						"Node %s interface %s %s connected: %v, expected: true",
 						nodeName, rxIface, pinName, connected)
+
+					By("waiting for all clocks to return to LOCKED")
+
+					err = metrics.EnsureClocksAreLocked(prometheusAPI)
+					Expect(err).ToNot(HaveOccurred(),
+						"Failed to wait for clocks to return to LOCKED after reconnecting SMA %s for "+
+							"interface %s on node %s", pinName, rxIface, nodeName)
 
 					By("waiting for PPS status to return to available")
 
@@ -232,7 +290,9 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 			}
 
 			if !testRanAtLeastOnce {
-				Skip("Could not find any multi-NIC GM node with e810 NIC and SMA connections")
+				Skip(fmt.Sprintf(
+					"Could not find any multi-NIC GM node with an e810 NIC and controllable SMA connections: %v",
+					sma.ErrSmaUnsupported))
 			}
 		})
 })

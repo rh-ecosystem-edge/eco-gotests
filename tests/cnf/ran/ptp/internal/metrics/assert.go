@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -129,8 +130,24 @@ func AssertWithStartTime(startTime time.Time) QueryAssertOption {
 // queries.
 func AssertQuery[V constraints.Integer](
 	ctx context.Context, client prometheusv1.API, query Query[V], expected V, options ...QueryAssertOption) error {
+	return AssertQueryAnyOf(ctx, client, query, []V{expected}, options...)
+}
+
+// AssertQueryAnyOf behaves exactly like [AssertQuery] except that the assertion succeeds when every value in the
+// result vector matches any one of the expected values, instead of one specific value. It is intended for states that
+// are only partially determined, such as a clock that must be not locked but is allowed to be either HOLDOVER or
+// FREERUN depending on how recently it was locked.
+//
+// SECURITY: This function does not perform any sort of sanitization on the query. It should only be used with trusted
+// queries.
+func AssertQueryAnyOf[V constraints.Integer](
+	ctx context.Context, client prometheusv1.API, query Query[V], expected []V, options ...QueryAssertOption) error {
 	if client == nil {
 		return fmt.Errorf("cannot assert query with nil client")
+	}
+
+	if len(expected) == 0 {
+		return fmt.Errorf("cannot assert query with no expected values")
 	}
 
 	opts := newQueryAssertOptions()
@@ -331,12 +348,17 @@ func buildActualThresholds(
 	return actual, nil
 }
 
-// assertQueryAtTime executes the provided MetricQuery and compares all values in the result vector to the expected
-// value after converting the actual values to int64. It is used by AssertQuery to execute the query at a specific time.
-// When AssertQuery is called with no options, this function is called once with the current time. Otherwise, the more
-// complex logic in AssertQuery is used to poll with this function.
+// assertQueryAtTime executes the provided MetricQuery and checks that all values in the result vector match one of the
+// expected values after converting the actual values to int64. It is used by AssertQueryAnyOf to execute the query at a
+// specific time. When AssertQuery is called with no options, this function is called once with the current time.
+// Otherwise, the more complex logic in AssertQueryAnyOf is used to poll with this function.
 func assertQueryAtTime[V constraints.Integer](
-	ctx context.Context, client prometheusv1.API, query Query[V], expected V, assertTime time.Time) error {
+	ctx context.Context, client prometheusv1.API, query Query[V], expected []V, assertTime time.Time) error {
+	expectedValues := make([]int64, 0, len(expected))
+	for _, value := range expected {
+		expectedValues = append(expectedValues, int64(value))
+	}
+
 	metricQuery := query.ToMetricQuery()
 	// Since this function is only called with non-zero assertTimes in the past, we can set the queryTime to be the
 	// assertTime knowing it is valid. Setting the query time is done by setting the end time when using
@@ -358,14 +380,14 @@ func assertQueryAtTime[V constraints.Integer](
 		}
 
 		roundedValue := convertSampleValueToInt64(sample.Value)
-		if roundedValue != int64(expected) {
-			return fmt.Errorf("query assert error at time %s: expected %d, got %d\nquery: %s\nsample: %s",
-				assertTime, int64(expected), roundedValue, metricQuery.String(), sample)
+		if !slices.Contains(expectedValues, roundedValue) {
+			return fmt.Errorf("query assert error at time %s: expected one of %v, got %d\nquery: %s\nsample: %s",
+				assertTime, expectedValues, roundedValue, metricQuery.String(), sample)
 		}
 	}
 
-	klog.V(tsparams.LogLevel).Infof("Query assert passed at time %s: expected %d, got %#v\nquery: %s",
-		assertTime, int64(expected), result, metricQuery.String())
+	klog.V(tsparams.LogLevel).Infof("Query assert passed at time %s: expected one of %v, got %#v\nquery: %s",
+		assertTime, expectedValues, result, metricQuery.String())
 
 	return nil
 }
