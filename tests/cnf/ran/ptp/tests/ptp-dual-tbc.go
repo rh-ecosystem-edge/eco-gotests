@@ -21,7 +21,10 @@ import (
 )
 
 var _ = Describe("PTP Dual T-BC", Label(tsparams.LabelDualTBC), func() {
-	var prometheusAPI prometheusv1.API
+	var (
+		prometheusAPI prometheusv1.API
+		baseline      *profiles.Baseline
+	)
 
 	BeforeEach(func() {
 		var err error
@@ -40,6 +43,21 @@ var _ = Describe("PTP Dual T-BC", Label(tsparams.LabelDualTBC), func() {
 		if !inRange {
 			Skip("Test is valid from version 5.0")
 		}
+
+		By("capturing the converged process baseline before testing")
+
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
+
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order. This suite changes holdover
+		// settings from its own DeferCleanup, so it has to settle after those.
+		DeferCleanup(func() {
+			By("waiting for the cluster to settle")
+
+			err := profiles.Settle(RANConfig.Spoke1APIClient, prometheusAPI, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to settle the cluster")
+		})
 	})
 
 	Context("dual t-bc dual time receiver ports on the same NIC", func() {

@@ -19,7 +19,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -32,6 +31,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 	var (
 		prometheusAPI       prometheusv1.API
 		savedPtpConfigs     []*ptp.PtpConfigBuilder
+		baseline            *profiles.Baseline
 		interfacesToRestore []interfaceToRestore
 	)
 
@@ -65,6 +65,21 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
+
+		By("capturing the converged process baseline before testing")
+
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
+
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order.
+		DeferCleanup(func() {
+			By("restoring PtpConfigs and waiting for the cluster to settle")
+
+			err := profiles.RestoreAndSettle(
+				RANConfig.Spoke1APIClient, prometheusAPI, savedPtpConfigs, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs and settle the cluster")
+		})
 	})
 
 	AfterEach(func() {
@@ -86,31 +101,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			Expect(restoreErrs).To(BeEmpty(), "Failed to bring interfaces back up before checking lock")
 		}
-
-		By("restoring PtpConfigs after testing")
-
-		startTime := time.Now()
-		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
-
-		if len(changedProfiles) > 0 {
-			By("waiting for profile load on nodes")
-
-			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute),
-				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
-			if err != nil {
-				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
-				// this non-fatal. This only happens in certain scenarios in MNO clusters.
-				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
-			}
-		}
-
-		By("ensuring clocks are locked after testing")
-
-		err = metrics.EnsureClocksAreLocked(prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
 	// 49742 - Validating events when slave interface goes down and up.
@@ -740,6 +730,16 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					totalHAProfiles += len(inactiveProfiles)
 
 					DeferCleanup(func() {
+						// This spec removes the active profile and nothing else puts it back, so the
+						// restore has to happen here. The spec-level settle is registered in the
+						// BeforeEach and so runs after this cleanup, which would leave the profile
+						// missing and the HA total permanently short of totalHAProfiles.
+						By("restoring PtpConfigs before validating HA health")
+
+						err := profiles.RestoreAndSettle(
+							RANConfig.Spoke1APIClient, prometheusAPI, savedPtpConfigs, baseline)
+						Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs and settle the cluster")
+
 						By("validating HA is healthy after restoration")
 						waitForHAHealthy(prometheusAPI, nodeName, totalHAProfiles, 5*time.Minute)
 

@@ -26,6 +26,7 @@ import (
 var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), func() {
 	var (
 		prometheusAPI prometheusv1.API
+		baseline      *profiles.Baseline
 	)
 
 	BeforeEach(func() {
@@ -48,17 +49,24 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
-	})
 
-	AfterEach(func() {
-		if CurrentSpecReport().State == types.SpecStateSkipped {
-			return
-		}
+		By("capturing the converged process baseline before testing")
 
-		By("ensuring clocks are locked after testing")
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
 
-		err := metrics.EnsureClocksAreLocked(prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order.
+		DeferCleanup(func() {
+			if CurrentSpecReport().State == types.SpecStateSkipped {
+				return
+			}
+
+			By("waiting for the cluster to settle")
+
+			err := profiles.Settle(RANConfig.Spoke1APIClient, prometheusAPI, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to settle the cluster")
+		})
 	})
 
 	// 81205 - checks FREERUN status are generated for dpll process for RX interface and GM process for TX interface

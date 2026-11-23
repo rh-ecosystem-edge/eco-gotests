@@ -54,6 +54,7 @@ var _ = Describe("PTP Log Reduction", Label(tsparams.LabelLogReduction), func() 
 	var (
 		prometheusAPI   prometheusv1.API
 		savedPtpConfigs []*ptp.PtpConfigBuilder
+		baseline        *profiles.Baseline
 	)
 
 	BeforeEach(func() {
@@ -82,35 +83,25 @@ var _ = Describe("PTP Log Reduction", Label(tsparams.LabelLogReduction), func() 
 
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
-	})
 
-	AfterEach(func() {
-		if CurrentSpecReport().State == types.SpecStateSkipped {
-			return
-		}
+		By("capturing the converged process baseline before testing")
 
-		By("restoring PtpConfigs to original specs")
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
 
-		startTime := time.Now()
-		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
-
-		if len(changedProfiles) > 0 {
-			By("waiting for profile load on nodes")
-
-			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute),
-				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
-			if err != nil {
-				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order.
+		DeferCleanup(func() {
+			if CurrentSpecReport().State == types.SpecStateSkipped {
+				return
 			}
-		}
 
-		By("ensuring clocks are locked after testing")
+			By("restoring PtpConfigs and waiting for the cluster to settle")
 
-		err = metrics.EnsureClocksAreLocked(prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+			err := profiles.RestoreAndSettle(
+				RANConfig.Spoke1APIClient, prometheusAPI, savedPtpConfigs, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs and settle the cluster")
+		})
 	})
 
 	// 83456 - Validates the thresholds summary is seen in the linuxptp-daemon logs after changing the ptpSetting

@@ -17,20 +17,19 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
-	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func() {
 	var (
 		prometheusAPI   prometheusv1.API
 		savedPtpConfigs []*ptp.PtpConfigBuilder
+		baseline        *profiles.Baseline
 	)
 
 	BeforeEach(func() {
@@ -50,33 +49,21 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
-	})
 
-	AfterEach(func() {
-		By("restoring PtpConfigs after testing")
+		By("capturing the converged process baseline before testing")
 
-		startTime := time.Now()
-		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
 
-		if len(changedProfiles) > 0 {
-			By("waiting for profile load on nodes")
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order.
+		DeferCleanup(func() {
+			By("restoring PtpConfigs and waiting for the cluster to settle")
 
-			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute),
-				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
-			if err != nil {
-				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
-				// this non-fatal. This only happens in certain scenarios in MNO clusters.
-				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
-			}
-		}
-
-		By("ensuring clocks are locked after testing")
-
-		err = metrics.EnsureClocksAreLocked(prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+			err := profiles.RestoreAndSettle(
+				RANConfig.Spoke1APIClient, prometheusAPI, savedPtpConfigs, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs and settle the cluster")
+		})
 	})
 
 	// 64775 - Validate System is restored after POD restart/deletion
