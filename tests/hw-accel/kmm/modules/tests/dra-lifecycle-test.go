@@ -249,7 +249,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error deleting namespace")
 			})
 
-			It("should clean up DRA resources when spec.dra is removed",
+			It("should reject spec.dra removal and clean up DRA resources when Module is deleted",
 				reportxml.ID("89704"), func() {
 					By("Verify DRA DaemonSet is running before removal")
 
@@ -264,7 +264,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					Expect(err).ToNot(HaveOccurred(),
 						"DeviceClass should exist before removal")
 
-					By("Remove spec.dra from Module")
+					By("Reject removing spec.dra from Module")
 
 					patch := []map[string]interface{}{
 						{"op": "remove", "path": "/spec/dra"},
@@ -276,19 +276,33 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					module := define.UnstructuredModule(moduleName, nSpace, map[string]interface{}{})
 					err = APIClient.Patch(context.TODO(), module,
 						runtimeClient.RawPatch(types.JSONPatchType, patchBytes))
-					Expect(err).ToNot(HaveOccurred(), "error patching module to remove DRA")
+					Expect(err).To(HaveOccurred(), "removing spec.dra should be rejected")
+					Expect(err.Error()).To(ContainSubstring(
+						"spec.dra cannot be removed; delete the Module once no ResourceClaim consumer is left"))
+
+					By("Delete the complete Module to start the supported cleanup flow")
+
+					err = await.CleanupModules(APIClient, []string{moduleName}, nSpace)
+					Expect(err).ToNot(HaveOccurred(),
+						"error deleting Module")
 
 					By("Verify DRA DaemonSet is deleted")
 
-					err = await.DRADaemonSetGone(APIClient, nSpace, 2*time.Minute)
-					Expect(err).ToNot(HaveOccurred(),
-						"DRA DaemonSet should be deleted after removing spec.dra")
+					Eventually(func() int {
+						daemonSets, getErr := get.AllDRADaemonSets(APIClient, moduleName, nSpace)
+						if getErr != nil {
+							return -1
+						}
+
+						return len(daemonSets)
+					}, 2*time.Minute, 5*time.Second).Should(Equal(0),
+						"DRA DaemonSet should be deleted after Module deletion")
 
 					By("Verify DeviceClass is deleted")
 
 					err = await.DeviceClassDeleted(APIClient, deviceClassName, time.Minute)
 					Expect(err).ToNot(HaveOccurred(),
-						"DeviceClass should be deleted after removing spec.dra")
+						"DeviceClass should be deleted after Module deletion")
 
 					By("Verify DRA node label is removed")
 
@@ -296,27 +310,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 						return check.NoDRANodeLabel(APIClient, moduleName, nSpace,
 							GeneralConfig.WorkerLabelMap)
 					}, time.Minute, 5*time.Second).Should(BeTrue(),
-						"DRA node label should be removed after removing spec.dra")
-
-					By("Verify status.dra is cleared")
-
-					Eventually(func() bool {
-						availNum, desiredNum, found, getErr := check.DRAModuleStatus(
-							APIClient, moduleName, nSpace)
-						if getErr != nil {
-							return false
-						}
-
-						return !found || (availNum == 0 && desiredNum == 0)
-					}, time.Minute, 5*time.Second).Should(BeTrue(),
-						"status.dra should be cleared after removing spec.dra")
-
-					By("Verify module loader is still running")
-
-					_, err = check.NodeLabel(APIClient, moduleName, nSpace,
-						GeneralConfig.WorkerLabelMap)
-					Expect(err).ToNot(HaveOccurred(),
-						"module node label should still be set after removing DRA")
+						"DRA node label should be removed after Module deletion")
 				})
 		})
 
