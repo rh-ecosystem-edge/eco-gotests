@@ -563,8 +563,8 @@ github.com/openshift/local-storage-operator v0.0.0-20261002135716-3e6582a04c6b h
 github.com/openshift/local-storage-operator v0.0.0-20261002135716-3e6582a04c6b/go.mod h1:iGxu6N8oJGvU2BHEM7mFE4m6/Brf9VVP0oP6g2dapAE=
 github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9 h1:j33lcOXarhm//+kMIKT6GtwMxanxQp/RqaE8azXUURY=
 github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9/go.mod h1:MlgstLNLgOBuVFCRKJWquh8Fgb8fnFH1n5r2AUWa9oI=
-github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2 h1:3PMX9vfZEZFkyMZ90tQF7XO0lLioKIOSIYsZPYIBqNs=
-github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2/go.mod h1:KLVy06f6h02foLxEmttATrcb1LwadbbvwpB88FzniHI=
+github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d h1:kNpgt9rX2dz2cYVFhEF35SLNmQUSROVy3FBXcmE5irc=
+github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d/go.mod h1:HAOngKRADTv/0x72rR6guHEwqwEP/e92QU2mpcYjSFk=
 github.com/operator-framework/api v0.46.0 h1:EitSlfRJZKYDewTK+ntH9L/p+NIKv/L1PgRoaIWH+to=
 github.com/operator-framework/api v0.46.0/go.mod h1:oFXzh7rHCnMwC6N0B92NEsfQyLGJ7FrceAYemjwoKPI=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=

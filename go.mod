@@ -278,7 +278,7 @@ require (
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/ptp-operator => github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9 // release-5.0
-	github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2 // release-5.0
+	github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d // release-5.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v5.2.1-0.20190425001840-d5e6a33a1729+incompatible
 	github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.13.1
 	// PTP declares legacy v0.0.1 versions that outrank its compatible timestamped releases.
