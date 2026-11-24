@@ -1448,11 +1448,26 @@ func removeLACPBondInterfaces(workerNodeName string) error {
 
 	nodeSelector := createNodeSelector(workerNodeName)
 
+	for _, policyName := range []string{
+		nodeBond10Interface,
+		nodeBond20Interface,
+		fmt.Sprintf("lacp-bond-secondary-%s", workerNodeName),
+	} {
+		policy := nmstate.NewPolicyBuilder(APIClient, policyName, nodeSelector)
+		if !policy.Exists() {
+			continue
+		}
+
+		if _, err := policy.Delete(); err != nil {
+			return fmt.Errorf("failed to delete %s NMState policy: %w", policyName, err)
+		}
+	}
+
 	bondRemovalPolicy := nmstate.NewPolicyBuilder(APIClient, "remove-lacp-bonds", nodeSelector).
 		WithAbsentInterface(nodeBond10Interface).
 		WithAbsentInterface(nodeBond20Interface)
 
-	err := netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bondRemovalPolicy)
+	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bondRemovalPolicy)
 	if err != nil {
 		return fmt.Errorf("failed to remove LACP bond interfaces: %w", err)
 	}
@@ -1865,6 +1880,14 @@ func configureLACPBondInterfaceSecondary(nodeName, interfaceName string) {
 		MinLinks: 1,
 	}
 
+	removalPolicyName := fmt.Sprintf("remove-bond20-%s", nodeName)
+	removalPolicy := nmstate.NewPolicyBuilder(APIClient, removalPolicyName, nodeSelector)
+
+	if removalPolicy.Exists() {
+		_, err := removalPolicy.Delete()
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete %s NMState policy", removalPolicyName))
+	}
+
 	nmstatePolicyName := fmt.Sprintf("lacp-bond-secondary-%s", nodeName)
 	secondaryBondPolicy := nmstate.NewPolicyBuilder(APIClient, nmstatePolicyName, nodeSelector).
 		WithBondInterface([]string{interfaceName}, nodeBond20Interface, lacpNMStateBondMode8023ad, bondInterfaceOptions)
@@ -1877,6 +1900,20 @@ func removeSecondaryBondInterface(nodeName string) {
 	By(fmt.Sprintf("Removing secondary bond interface %s from node %s", nodeBond20Interface, nodeName))
 
 	nodeSelector := createNodeSelector(nodeName)
+
+	secondaryPolicyName := fmt.Sprintf("lacp-bond-secondary-%s", nodeName)
+	secondaryPolicy := nmstate.NewPolicyBuilder(APIClient, secondaryPolicyName, nodeSelector)
+
+	if secondaryPolicy.Exists() {
+		_, err := secondaryPolicy.Delete()
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete %s NMState policy", secondaryPolicyName))
+	}
+
+	bond20Policy := nmstate.NewPolicyBuilder(APIClient, nodeBond20Interface, nodeSelector)
+	if bond20Policy.Exists() {
+		_, err := bond20Policy.Delete()
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete existing %s NMState policy", nodeBond20Interface))
+	}
 
 	bondRemovalPolicy := nmstate.NewPolicyBuilder(APIClient, fmt.Sprintf("remove-bond20-%s", nodeName), nodeSelector).
 		WithAbsentInterface(nodeBond20Interface)
