@@ -531,6 +531,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 					var configFile string
+
 					configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
 						RANConfig.Spoke1APIClient, nodeInfo.Name,
 						RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
@@ -807,6 +808,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 			var configFile string
+
 			configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
 				RANConfig.Spoke1APIClient, nodeInfo.Name,
 				RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)

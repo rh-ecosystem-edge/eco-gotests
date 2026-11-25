@@ -61,6 +61,7 @@ func GetPtp4lConfigByRelatedProcess(
 func GetPtp4lConfigByRelatedProcessIfSupported(
 	client *clients.Settings, nodeName, ptpVersion string, relatedProcess PtpProcess) (string, error) {
 	configSupported, err := isPtp4lConfigSupported(ptpVersion)
+
 	if err != nil {
 		return "", err
 	}

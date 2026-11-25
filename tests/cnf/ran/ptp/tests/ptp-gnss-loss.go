@@ -688,6 +688,7 @@ func assertClockClass6InMetrics(
 	var configFile string
 
 	var err error
+
 	configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
 		RANConfig.Spoke1APIClient, nodeName, RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
 	Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
