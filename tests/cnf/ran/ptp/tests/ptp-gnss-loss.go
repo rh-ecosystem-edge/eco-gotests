@@ -30,7 +30,6 @@ import (
 var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 	var (
 		prometheusAPI        prometheusv1.API
-		configSupported      bool
 		assertOsClockFreerun bool
 	)
 
@@ -57,12 +56,11 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
-		configSupported, err = version.IsVersionStringInRange(
+		assertOsClockFreerun, err = version.IsVersionStringInRange(
 			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP config label version range")
 
 		// OsClockSyncStateChange FREERUN event is supported from PTP version 4.20.0
-		assertOsClockFreerun = configSupported
 	})
 
 	AfterEach(func() {
@@ -192,7 +190,7 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				assertClockClass6InMetrics(prometheusAPI, nodeName)
 
 				By("verifying clock state LOCKED in metrics")
 
@@ -394,7 +392,7 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				assertClockClass6InMetrics(prometheusAPI, nodeName)
 			}
 
 			if !testActuallyRan {
@@ -579,7 +577,7 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				assertClockClass6InMetrics(prometheusAPI, nodeName)
 			}
 
 			if !testActuallyRan {
@@ -684,18 +682,15 @@ func assertNMEAStatusAvailable(
 func assertClockClass6InMetrics(
 	prometheusAPI prometheusv1.API,
 	nodeName string,
-	configSupported bool,
 ) {
 	GinkgoHelper()
 
 	var configFile string
 
 	var err error
-	if configSupported {
-		configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-			RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
-		Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
-	}
+	configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
+		RANConfig.Spoke1APIClient, nodeName, RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
+	Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
 
 	clockClassQuery := metrics.ClockClassQuery{
 		Process: metrics.Equals(metrics.ProcessPTP4L),

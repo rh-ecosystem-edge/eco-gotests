@@ -742,33 +742,21 @@ func discoverHoldoverTestData(
 				continue
 			}
 
+			configFile, configErr := processes.GetPtp4lConfigByRelatedProcessIfSupported(
+				RANConfig.Spoke1APIClient, name, RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
+			Expect(configErr).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", name)
+
 			return &profiles.HoldoverTestData{
 				PrometheusAPI:  prometheusAPI,
 				NodeName:       name,
 				ProfileInfo:    profileInfo,
 				UpstreamIfaces: ports,
-				ConfigFile:     getPtp4lConfigFileForNode(name),
+				ConfigFile:     configFile,
 			}
 		}
 	}
 
 	return nil
-}
-
-// getPtp4lConfigFileForNode returns the ptp4l.<index>.config name for the ts2phc process on the given node.
-func getPtp4lConfigFileForNode(nodeName string) string {
-	configSupported, err := version.IsVersionStringInRange(
-		RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21.0-0", "")
-	Expect(err).ToNot(HaveOccurred(), "Failed to check PTP operator version range")
-
-	if !configSupported {
-		return ""
-	}
-
-	configFile, err := processes.GetPtp4lConfigByRelatedProcess(RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
-	Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
-
-	return configFile
 }
 
 // restoreInterfacesAndWaitForRelock brings the upstream interfaces back up and waits for the T-BC clock to return

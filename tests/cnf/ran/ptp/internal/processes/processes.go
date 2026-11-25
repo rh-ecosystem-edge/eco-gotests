@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -53,6 +54,30 @@ func GetPtp4lConfigByRelatedProcess(
 	}
 
 	return fmt.Sprintf("%s.%s.config", Ptp4l, indices[0]), nil
+}
+
+// GetPtp4lConfigByRelatedProcessIfSupported returns the ptp4l config associated with the provided related process
+// when the PTP operator version supports config labels. It returns an empty string for older versions.
+func GetPtp4lConfigByRelatedProcessIfSupported(
+	client *clients.Settings, nodeName, ptpVersion string, relatedProcess PtpProcess) (string, error) {
+	configSupported, err := isPtp4lConfigSupported(ptpVersion)
+	if err != nil {
+		return "", err
+	}
+	if !configSupported {
+		return "", nil
+	}
+
+	return GetPtp4lConfigByRelatedProcess(client, nodeName, relatedProcess)
+}
+
+func isPtp4lConfigSupported(ptpVersion string) (bool, error) {
+	configSupported, err := version.IsVersionStringInRange(ptpVersion, "4.21.0-0", "")
+	if err != nil {
+		return false, fmt.Errorf("failed to check PTP config label version range: %w", err)
+	}
+
+	return configSupported, nil
 }
 
 // GetPID returns the PID of a PTP process on a node by executing a pgrep command in the ptp daemon pod. This function
