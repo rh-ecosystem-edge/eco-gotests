@@ -16,6 +16,23 @@ roles:
     - coder
     - review
     - fix
+agents:
+    - name: triage
+      runtime: codex
+      model: openai/gpt-6.2-sol
+      effort: low
+    - name: code
+      runtime: codex
+      model: openai/gpt-6.2-sol
+      effort: low
+    - name: review
+      runtime: codex
+      model: openai/gpt-6.2-sol
+      effort: low
+    - name: fix
+      runtime: codex
+      model: openai/gpt-6.2-sol
+      effort: low
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
