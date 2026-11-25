@@ -10,20 +10,26 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/stability"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
-	var prometheusAPI prometheusv1.API
+	var (
+		prometheusAPI   prometheusv1.API
+		savedPtpConfigs []*ptp.PtpConfigBuilder
+	)
 
 	BeforeEach(func() {
 		By("creating a Prometheus API client")
@@ -37,12 +43,37 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+
+		By("saving PtpConfigs before testing")
+
+		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 	})
 
 	AfterEach(func() {
+		By("restoring PtpConfigs after testing")
+
+		startTime := time.Now()
+		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
+		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
+
+		if len(changedProfiles) > 0 {
+			By("waiting for profile load on nodes")
+
+			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
+				daemonlogs.WithStartTime(startTime),
+				daemonlogs.WithTimeout(5*time.Minute),
+				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
+			if err != nil {
+				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
+				// this a log message instead of a failure.
+				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
+			}
+		}
+
 		By("ensuring clocks are locked after testing")
 
-		err := metrics.EnsureClocksAreLocked(prometheusAPI)
+		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
@@ -63,6 +94,14 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 			}
 
 			testRanAtLeastOnce = true
+
+			// The analysis needs per-sample offset logs. With log reduction enabled the daemon only logs
+			// summaries, which hide servo state changes, so log reduction is turned off for the test and
+			// the original PtpConfigs are restored in AfterEach.
+			By("disabling log reduction on node " + nodeInfo.Name)
+
+			err = setLogReduceValForNode(prometheusAPI, RANConfig.Spoke1APIClient, nodeInfo.Name, "false")
+			Expect(err).ToNot(HaveOccurred(), "Failed to disable log reduction on node %s", nodeInfo.Name)
 
 			By("asserting ptp4l and phc2sys processes are up on node " + nodeInfo.Name)
 			ptp4lProcessStatusQuery := metrics.ProcessStatusQuery{
