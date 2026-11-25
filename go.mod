@@ -292,3 +292,5 @@ replace (
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/gkopels/eco-goinfra v0.0.0-20261124144852-6e8c241916c6

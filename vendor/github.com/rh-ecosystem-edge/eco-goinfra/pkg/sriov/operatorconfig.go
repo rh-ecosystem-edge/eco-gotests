@@ -160,7 +160,7 @@ func (builder *OperatorConfigBuilder) get(ctx context.Context) (*srIovV1.SriovOp
 
 	operatorConfig := &srIovV1.SriovOperatorConfig{}
 
-	err := builder.apiClient.Get(ctx,
+	err := builder.apiClient.Get(logging.WithDiscardLogger(ctx),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorConfig)
 	if err != nil {

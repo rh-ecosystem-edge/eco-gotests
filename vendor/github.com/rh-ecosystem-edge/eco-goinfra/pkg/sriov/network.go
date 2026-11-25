@@ -437,7 +437,7 @@ func (builder *NetworkBuilder) get(ctx context.Context) (*srIovV1.SriovNetwork, 
 
 	network := &srIovV1.SriovNetwork{}
 
-	err := builder.apiClient.Get(ctx,
+	err := builder.apiClient.Get(logging.WithDiscardLogger(ctx),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
 	if err != nil {

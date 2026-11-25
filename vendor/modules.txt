@@ -1042,7 +1042,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261122122214-92f34bdeff43
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261122122214-92f34bdeff43 => github.com/gkopels/eco-goinfra v0.0.0-20261124144852-6e8c241916c6
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -2347,3 +2347,4 @@ sigs.k8s.io/yaml/kyaml
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 # k8s.io/client-go => k8s.io/client-go v0.37.2
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
+# github.com/rh-ecosystem-edge/eco-goinfra => github.com/gkopels/eco-goinfra v0.0.0-20261124144852-6e8c241916c6
