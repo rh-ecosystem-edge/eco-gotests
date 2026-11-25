@@ -60,7 +60,16 @@ func GetPtp4lConfigByRelatedProcess(
 // when the PTP operator version supports config labels. It returns an empty string for older versions.
 func GetPtp4lConfigByRelatedProcessIfSupported(
 	client *clients.Settings, nodeName, ptpVersion string, relatedProcess PtpProcess) (string, error) {
-	configSupported, err := isPtp4lConfigSupported(ptpVersion)
+	return GetPtp4lConfigByRelatedProcessIfSupportedFromVersion(
+		client, nodeName, ptpVersion, relatedProcess, "4.21.0-0")
+}
+
+// GetPtp4lConfigByRelatedProcessIfSupportedFromVersion returns the ptp4l config associated with the provided related
+// process when the PTP operator version is at least the specified minimum version. It returns an empty string for
+// older versions.
+func GetPtp4lConfigByRelatedProcessIfSupportedFromVersion(
+	client *clients.Settings, nodeName, ptpVersion string, relatedProcess PtpProcess, minVersion string) (string, error) {
+	configSupported, err := isPtp4lConfigSupported(ptpVersion, minVersion)
 	if err != nil {
 		return "", err
 	}
@@ -72,8 +81,8 @@ func GetPtp4lConfigByRelatedProcessIfSupported(
 	return GetPtp4lConfigByRelatedProcess(client, nodeName, relatedProcess)
 }
 
-func isPtp4lConfigSupported(ptpVersion string) (bool, error) {
-	configSupported, err := version.IsVersionStringInRange(ptpVersion, "4.21.0-0", "")
+func isPtp4lConfigSupported(ptpVersion, minVersion string) (bool, error) {
+	configSupported, err := version.IsVersionStringInRange(ptpVersion, minVersion, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to check PTP config label version range: %w", err)
 	}

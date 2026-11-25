@@ -26,7 +26,7 @@ func TestPtp4lConfigSupport(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotSupport, err := isPtp4lConfigSupported(testCase.ptpVersion)
+			gotSupport, err := isPtp4lConfigSupported(testCase.ptpVersion, "4.21.0-0")
 			require.NoError(t, err)
 			assert.Equal(t, testCase.wantSupport, gotSupport)
 
@@ -37,4 +37,10 @@ func TestPtp4lConfigSupport(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("version with GNSS event support", func(t *testing.T) {
+		gotSupport, err := isPtp4lConfigSupported("4.20.0-0", "4.20.0-0")
+		require.NoError(t, err)
+		assert.True(t, gotSupport)
+	})
 }
