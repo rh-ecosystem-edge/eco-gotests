@@ -76,7 +76,7 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 				sriovNetworkBuilder.Definition.Name, err)
 
 			err = sriovenv.WaitForNADCreation(
-				sriovNetworkBuilder.Definition.Name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
+				sriovNetworkBuilder.Definition.Name, sriovNetworkBuilder.Definition.Namespace, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 				sriovNetworkBuilder.Definition.Name, err)
