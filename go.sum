@@ -563,8 +563,8 @@ github.com/openshift/local-storage-operator v0.0.0-20261002135716-3e6582a04c6b h
 github.com/openshift/local-storage-operator v0.0.0-20261002135716-3e6582a04c6b/go.mod h1:iGxu6N8oJGvU2BHEM7mFE4m6/Brf9VVP0oP6g2dapAE=
 github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9 h1:j33lcOXarhm//+kMIKT6GtwMxanxQp/RqaE8azXUURY=
 github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9/go.mod h1:MlgstLNLgOBuVFCRKJWquh8Fgb8fnFH1n5r2AUWa9oI=
-github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2 h1:3PMX9vfZEZFkyMZ90tQF7XO0lLioKIOSIYsZPYIBqNs=
-github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2/go.mod h1:KLVy06f6h02foLxEmttATrcb1LwadbbvwpB88FzniHI=
+github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d h1:kNpgt9rX2dz2cYVFhEF35SLNmQUSROVy3FBXcmE5irc=
+github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d/go.mod h1:HAOngKRADTv/0x72rR6guHEwqwEP/e92QU2mpcYjSFk=
 github.com/operator-framework/api v0.46.0 h1:EitSlfRJZKYDewTK+ntH9L/p+NIKv/L1PgRoaIWH+to=
 github.com/operator-framework/api v0.46.0/go.mod h1:oFXzh7rHCnMwC6N0B92NEsfQyLGJ7FrceAYemjwoKPI=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
@@ -606,8 +606,8 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23 h1:qf
 github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23/go.mod h1:dqXnIfZrII4za/cbPkS2iTq2XogfBLsy8WDUeVr0gIs=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261122122214-92f34bdeff43 h1:5MCoo9Q5/MnFUB5Ue9cDa7fsh2Av4wEVI66GbRC6+o0=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261122122214-92f34bdeff43/go.mod h1:UiRONO41SymROafO9RSPdiFtQ9lR69ikG89c3qUGjpo=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125114643-74a227e9ffbf h1:fJI847wU8IKILb00VNhOXBWSAuc2aCaiy7B2rq86DlU=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125114643-74a227e9ffbf/go.mod h1:P88nSaSVAZuJXR/02Hi/XtvHkoyeBG73BmNx/Q0YwtU=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rogpeppe/go-internal v1.15.0 h1:D0RCU5rMAp+SpgkiNdrjfJ+LX4J1M32V2NeCY7EJ6hc=

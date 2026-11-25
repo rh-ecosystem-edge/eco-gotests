@@ -125,7 +125,7 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName string) (*sriov.PoolCo
 		return nil, fmt.Errorf("failed to init SriovNetworkPoolConfig builder")
 	}
 
-	builder.Definition.Spec.OvsHardwareOffloadConfig = sriovv1.OvsHardwareOffloadConfig{
+	builder.Definition.Spec.OvsHardwareOffloadConfig = &sriovv1.OvsHardwareOffloadConfig{
 		Name: mcpName,
 	}
 

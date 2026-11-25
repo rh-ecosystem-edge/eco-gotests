@@ -31,7 +31,8 @@ type TLSConfig struct {
 }
 
 const (
-	SriovNetworkOperatorIdentifier = "sriov-network-operator"
+	SriovNetworkOperatorIdentifier     = "sriov-network-operator"
+	SriovNetworkConfigDaemonIdentifier = "sriov-network-config-daemon"
 
 	Chroot = "/host"
 	Host   = "/host"
@@ -94,6 +95,12 @@ const (
 	SriovDevicePluginLabel         = "sriovnetwork.openshift.io/device-plugin"
 	SriovDevicePluginLabelEnabled  = "Enabled"
 	SriovDevicePluginLabelDisabled = "Disabled"
+	// NodeStatePolicyRevisionsAnnotation records a SriovNetworkNodePolicy UID and generation on
+	// a NodeState.
+	NodeStatePolicyRevisionsAnnotation = "sriovnetwork.openshift.io/policy-revisions"
+	// PoolRevisionAnnotation records a SriovNetworkPoolConfig UID and generation on
+	// a NodeState or an offload MachineConfig.
+	PoolRevisionAnnotation = "sriovnetwork.openshift.io/pool-revision"
 
 	NodeDrainAnnotation                = "sriovnetwork.openshift.io/state"
 	NodeStateDrainAnnotation           = "sriovnetwork.openshift.io/desired-state"
@@ -103,6 +110,7 @@ const (
 	DrainIdle                          = "Idle"
 	DrainRequired                      = "Drain_Required"
 	RebootRequired                     = "Reboot_Required"
+	MaxRebootsPerGeneration            = 5
 	Draining                           = "Draining"
 	DrainComplete                      = "DrainComplete"
 
@@ -179,6 +187,7 @@ const (
 	SriovSystemdResultPath        = SriovConfBasePath + "/sriov-interface-result.yaml"
 	SriovSystemdSupportedNicPath  = SriovConfBasePath + "/sriov-supported-nics-ids.yaml"
 	SriovSystemdServiceBinaryPath = "/var/lib/sriov/sriov-network-config-daemon"
+	SriovRebootTrackerFilePath    = "/var/lib/sriov/reboot-tracker.yaml"
 
 	SriovServiceBasePath        = "/etc/systemd/system"
 	SriovServicePath            = SriovServiceBasePath + "/sriov-config.service"

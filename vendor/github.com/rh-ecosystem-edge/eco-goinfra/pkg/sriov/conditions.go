@@ -79,3 +79,25 @@ func isReadyConditionTrue(conditions []metav1.Condition, generation int64) bool 
 
 	return isConditionGenerationCurrent(generation, ready) && ready.Status == metav1.ConditionTrue
 }
+
+// isPoolConfigStable requires generation-fresh Ready=True. Progressing may be
+// absent; fail only if it is present, current, and True.
+func isPoolConfigStable(pool *srIovV1.SriovNetworkPoolConfig) bool {
+	if pool == nil {
+		return false
+	}
+
+	generation := pool.GetGeneration()
+
+	if !isReadyConditionTrue(pool.Status.Conditions, generation) {
+		return false
+	}
+
+	progressing := meta.FindStatusCondition(pool.Status.Conditions, srIovV1.ConditionProgressing)
+	if progressing != nil && isConditionGenerationCurrent(generation, progressing) &&
+		progressing.Status == metav1.ConditionTrue {
+		return false
+	}
+
+	return true
+}

@@ -667,8 +667,8 @@ github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
 ## explicit; go 1.25.0
 github.com/k8snetworkplumbingwg/ptp-operator/api/v1
 github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1
-# github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0 => github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2
-## explicit; go 1.25.3
+# github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0 => github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d
+## explicit; go 1.26.5
 github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1
 github.com/k8snetworkplumbingwg/sriov-network-operator/pkg/consts
 github.com/k8snetworkplumbingwg/sriov-network-operator/pkg/featuregate
@@ -1042,7 +1042,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261122122214-92f34bdeff43
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125114643-74a227e9ffbf
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -2336,7 +2336,7 @@ sigs.k8s.io/yaml
 sigs.k8s.io/yaml/kyaml
 # github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
 # github.com/k8snetworkplumbingwg/ptp-operator => github.com/openshift/ptp-operator v0.0.0-20261023023103-cbe73c6129a9
-# github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20260923181747-4d6a7b26cbe2
+# github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20261110110630-2dc04db94a9d
 # github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v5.2.1-0.20190425001840-d5e6a33a1729+incompatible
 # github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.13.1
 # github.com/openshift/api => github.com/openshift/api v0.0.0-20261017003925-24b2699a9b32
