@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
@@ -83,14 +81,6 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 	It("validates PTP stability and offset behavior over configured duration", reportxml.ID("38228"), func() {
 		testRanAtLeastOnce := false
 
-		// The analysis needs per-sample offset logs. With log reduction enabled the daemon only logs
-		// summaries, which hide servo state changes, so log reduction is turned off for the test and the
-		// original PtpConfigs are restored in AfterEach.
-		By("disabling log reduction in all PtpConfigs")
-
-		err := disableLogReduction(RANConfig.Spoke1APIClient, prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to disable log reduction")
-
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
@@ -104,6 +94,14 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 			}
 
 			testRanAtLeastOnce = true
+
+			// The analysis needs per-sample offset logs. With log reduction enabled the daemon only logs
+			// summaries, which hide servo state changes, so log reduction is turned off for the test and
+			// the original PtpConfigs are restored in AfterEach.
+			By("disabling log reduction on node " + nodeInfo.Name)
+
+			err = setLogReduceValForNode(prometheusAPI, RANConfig.Spoke1APIClient, nodeInfo.Name, "false")
+			Expect(err).ToNot(HaveOccurred(), "Failed to disable log reduction on node %s", nodeInfo.Name)
 
 			By("asserting ptp4l and phc2sys processes are up on node " + nodeInfo.Name)
 			ptp4lProcessStatusQuery := metrics.ProcessStatusQuery{
@@ -152,73 +150,3 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 		}
 	})
 })
-
-// disableLogReduction sets ptpSettings.logReduce to "false" on every PtpConfig profile that has log reduction
-// enabled. If any PtpConfig was updated, it waits for the profiles to be reloaded on the PTP nodes and for the
-// clocks to be locked again, so the log collection does not include the restart of the PTP processes.
-func disableLogReduction(client *clients.Settings, prometheusAPI prometheusv1.API) error {
-	ptpConfigList, err := ptp.ListPtpConfigs(client)
-	if err != nil {
-		return fmt.Errorf("failed to list PtpConfigs: %w", err)
-	}
-
-	var startTime time.Time
-
-	for _, ptpConfig := range ptpConfigList {
-		updated := false
-
-		for i := range ptpConfig.Definition.Spec.Profile {
-			profile := &ptpConfig.Definition.Spec.Profile[i]
-
-			if !isLogReductionEnabled(profile.PtpSettings) {
-				continue
-			}
-
-			profile.PtpSettings["logReduce"] = "false"
-			updated = true
-		}
-
-		if !updated {
-			continue
-		}
-
-		if startTime.IsZero() {
-			startTime = time.Now()
-		}
-
-		_, err = ptpConfig.Update()
-		if err != nil {
-			return fmt.Errorf("failed to update PtpConfig %s: %w", ptpConfig.Definition.Name, err)
-		}
-	}
-
-	if startTime.IsZero() {
-		klog.V(tsparams.LogLevel).Info("Log reduction is already disabled in all PtpConfigs")
-
-		return nil
-	}
-
-	err = daemonlogs.WaitForProfileLoadOnPTPNodes(client,
-		daemonlogs.WithStartTime(startTime),
-		daemonlogs.WithTimeout(5*time.Minute),
-		daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
-	if err != nil {
-		// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make this a log
-		// message instead of a failure. The clock state check below still has to pass.
-		klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load after disabling log reduction: %v", err)
-	}
-
-	err = metrics.EnsureClocksAreLocked(prometheusAPI)
-	if err != nil {
-		return fmt.Errorf("failed to ensure clocks are locked after disabling log reduction: %w", err)
-	}
-
-	return nil
-}
-
-// isLogReductionEnabled returns true if ptpSettings.logReduce is set to anything other than "false".
-func isLogReductionEnabled(ptpSettings map[string]string) bool {
-	logReduce := strings.TrimSpace(ptpSettings["logReduce"])
-
-	return logReduce != "" && !strings.EqualFold(logReduce, "false")
-}
