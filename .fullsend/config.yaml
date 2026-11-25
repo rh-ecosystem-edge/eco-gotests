@@ -19,20 +19,20 @@ roles:
 agents:
     - name: triage
       runtime: codex
-      model: openai/gpt-6.2-sol
-      effort: low
+      model: openai/gpt-5.6-luna
+      effort: medium
     - name: code
       runtime: codex
-      model: openai/gpt-6.2-sol
-      effort: low
+      model: openai/gpt-5.6-luna
+      effort: medium
     - name: review
       runtime: codex
-      model: openai/gpt-6.2-sol
-      effort: low
+      model: openai/gpt-5.6-luna
+      effort: medium
     - name: fix
       runtime: codex
-      model: openai/gpt-6.2-sol
-      effort: low
+      model: openai/gpt-5.6-luna
+      effort: medium
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
