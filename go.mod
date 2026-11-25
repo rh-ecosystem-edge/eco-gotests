@@ -294,4 +294,4 @@ replace (
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
 )
 
-replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261119161638-705cb3586232
+replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261125220739-e49d21fca64c
