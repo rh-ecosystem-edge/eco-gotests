@@ -732,7 +732,3 @@ type ClusterInstanceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClusterInstance `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&ClusterInstance{}, &ClusterInstanceList{})
-}

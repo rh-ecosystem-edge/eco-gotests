@@ -1,0 +1,1195 @@
+# Synced with oran-o2ims commit cfec024dff6e61a9e0b92efd464ce5bd4be06f7f
+openapi: 3.0.3
+info:
+  title: O2IMS Infrastructure Monitoring Alarms API
+  version: 2.2.0
+  description: |
+    API for O2IMS Infrastructure Monitoring Alarms.
+
+    All responses served under the versioned /O2ims_infrastructureMonitoring/v2 paths and
+    the unversioned /O2ims_infrastructureMonitoring/api_versions discovery endpoint carry a
+    `Version: 2.2.0` HTTP response header (on both successful and handled-error responses).
+    The header is set by the server's path-scoped middleware; it is not part of any response
+    body schema.
+  contact:
+    name: Red Hat
+    url: https://www.redhat.com
+
+externalDocs:
+  description: O-RAN O2ims Interface Specification (O-RAN.WG6.TS.O2IMS-INTERFACE-R005-v13.00), available from the O-RAN specifications catalog
+  url: https://www.o-ran.org/specifications
+
+servers:
+- url: http://localhost:8000
+  description: O-RAN Alarms Server
+
+tags:
+- name: alarms
+  description: Alarm management
+- name: serviceConfiguration
+  description: Alarm Service Configuration
+- name: subscriptions
+  description: Alarm subscription management
+
+# Scope enforcement: OAuth scopes are not verified directly from the token's
+# scope claim. The OAuth server translates scopes into group memberships
+# (via the groups claim), and the Authorizer maps those groups to Kubernetes
+# RBAC permissions via SubjectAccessReview. See DD-003 in AGENTS.md.
+security:
+- oauth2:
+  - role:o2ims-admin
+
+paths:
+  /O2ims_infrastructureMonitoring/api_versions:
+    get:
+      operationId: getAllVersions
+      summary: Get API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the complete list of API versions implemented by the service.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Successfully obtained the complete list of versions.
+          content:
+            application/json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/APIVersions'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /O2ims_infrastructureMonitoring/v2/api_versions:
+    get:
+      operationId: getMinorVersions
+      summary: Get minor API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of minor API versions implemented for this major version of the API.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Success
+          content:
+            application/json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/APIVersions'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /O2ims_infrastructureMonitoring/v2/alarms:
+    get:
+      operationId: GetAlarms
+      summary: Retrieve the list of alarms
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      tags:
+      - alarms
+      parameters:
+      - $ref: "../../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: '../../common/openapi.yaml#/components/parameters/excludeFields'
+      - $ref: '../../common/openapi.yaml#/components/parameters/fields'
+      - $ref: '../../common/openapi.yaml#/components/parameters/filter'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlarmEventRecord'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /O2ims_infrastructureMonitoring/v2/alarms/{alarmEventRecordId}:
+    get:
+      operationId: GetAlarm
+      summary: Retrieve exactly one alarm
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      tags:
+      - alarms
+      parameters:
+      - in: path
+        name: alarmEventRecordId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        example: 78081d85-5736-4215-afab-772461544e60
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmEventRecord'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified AlarmEventRecord was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    patch:
+      operationId: PatchAlarm
+      summary: Modify an individual alarm record
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-maintainer
+      tags:
+      - alarms
+      parameters:
+      - in: path
+        name: alarmEventRecordId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        example: 78081d85-5736-4215-afab-772461544e60
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/AlarmEventRecordModifications'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmEventRecordModifications'
+        '400':
+          description: Bad request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '412':
+          description: Precondition failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /O2ims_infrastructureMonitoring/v2/alarmServiceConfiguration:
+    get:
+      operationId: GetServiceConfiguration
+      summary: Retrieve the alarm service configuration
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-maintainer
+      tags:
+      - serviceConfiguration
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmServiceConfiguration'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    put:
+      operationId: UpdateAlarmServiceConfiguration
+      summary: Modify all fields of the Alarm Service Configuration.
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-maintainer
+      tags:
+      - serviceConfiguration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlarmServiceConfiguration'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmServiceConfiguration'
+        '400':
+          description: Bad request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '412':
+          description: Precondition failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    patch:
+      operationId: PatchAlarmServiceConfiguration
+      summary: Modify individual fields of the Alarm Service Configuration.
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-maintainer
+      tags:
+      - serviceConfiguration
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/AlarmServiceConfigurationPatch'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmServiceConfiguration'
+        '400':
+          description: Bad request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '412':
+          description: Precondition failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /O2ims_infrastructureMonitoring/v2/alarmSubscriptions:
+    get:
+      operationId: GetSubscriptions
+      summary: Retrieve the list of alarm subscriptions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      tags:
+      - subscriptions
+      parameters:
+      - $ref: "../../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: '../../common/openapi.yaml#/components/parameters/excludeFields'
+      - $ref: '../../common/openapi.yaml#/components/parameters/fields'
+      - $ref: '../../common/openapi.yaml#/components/parameters/filter'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlarmSubscriptionInfo'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    post:
+      operationId: CreateSubscription
+      summary: Create a new alarm subscription
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-subscriber
+      tags:
+      - subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlarmSubscriptionInfo'
+      responses:
+        '201':
+          description: Successful creation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmSubscriptionInfo'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+      callbacks:
+        onAlarmEvent:
+          '{$request.body#/subscriber.callbackUrl}':
+            post:
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/AlarmEventNotification'
+              responses:
+                '200':
+                  description: Callback processed successfully
+                '400':
+                  description: Bad request
+                '500':
+                  description: Internal server error
+
+  /O2ims_infrastructureMonitoring/v2/alarmSubscriptions/{alarmSubscriptionId}:
+    get:
+      operationId: GetSubscription
+      summary: Retrieve exactly one subscription
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      tags:
+      - subscriptions
+      parameters:
+      - in: path
+        name: alarmSubscriptionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+        example: 78081d85-5736-4215-afab-772461544e60
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmSubscriptionInfo'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    delete:
+      operationId: DeleteSubscription
+      summary: Delete exactly one subscription
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-subscriber
+      tags:
+      - subscriptions
+      parameters:
+      - in: path
+        name: alarmSubscriptionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Successful deletion
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+    patch:
+      operationId: PatchSubscription
+      summary: Modify individual fields of an Alarm Subscription
+      description: |
+        Applies an RFC 7396 JSON Merge Patch to an existing Alarm Subscription.
+        An omitted field is left unchanged, an explicit null clears the field
+        (except callback, which cannot be cleared), and a value replaces the field.
+        Conditional updates (ETag / If-Match) are not supported.
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-subscriber
+      tags:
+      - subscriptions
+      parameters:
+      - in: path
+        name: alarmSubscriptionId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/AlarmSubscriptionUpdate'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlarmSubscriptionInfo'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: This API uses OAuth 2 with the client credentials flow.
+      flows:
+        clientCredentials:
+          tokenUrl: https://keycloak.example.com/realms/oran/protocol/openid-connect/token
+          scopes:
+            role:o2ims-reader: O2IMS Reader Role
+            role:o2ims-subscriber: O2IMS Subscriber Role
+            role:o2ims-maintainer: O2IMS Maintainer Role
+
+  schemas:
+    AlarmEventRecord:
+      type: object
+      properties:
+        alarmEventRecordId:
+          type: string
+          format: uuid
+          description: |
+            Identifier of an entry in the AlarmEventRecord.
+            Locally unique within the scope of an O-Cloud instance.
+          example: 752c4e22-057d-4162-997b-ca3e2fd4ff53
+        alarmDefinitionId:
+          type: string
+          format: uuid
+          description: |
+            A reference to the Alarm Definition record in the Alarm Dictionary associated with the referenced Resource Type.
+          example: 5369fe06-adeb-4966-b8ff-47a6f4d4cec5
+        probableCauseId:
+          type: string
+          format: uuid
+          description: A reference to the ProbableCause of the Alarm.
+          example: b45f64fe-6ed8-448d-8ff7-f5840090a075
+        alarmRaisedTime:
+          type: string
+          format: date-time
+          description: This field is populated with a Date/Time stamp value when the AlarmEventRecord is created.
+          example: 2042-07-21T17:32:28Z
+        alarmChangedTime:
+          type: string
+          format: date-time
+          description: |
+            This field is populated with a Date/Time stamp value when any value
+            of the AlarmEventRecord is modified.
+          example: 2042-07-21T19:32:28Z
+        alarmClearedTime:
+          type: string
+          format: date-time
+          description: |
+            This field is populated with a Date/Time stamp value when the alarm condition is cleared.
+          example: 2042-07-21T20:32:28Z
+        alarmAcknowledgeTime:
+          type: string
+          format: date-time
+          description: This field is populated with a Date/Time stamp value when the alarm condition is acknowledged.
+          example: 2042-07-21T18:32:28Z
+        alarmAcknowledged:
+          type: boolean
+          description: |
+            When a system acknowledges an alarm, it is then set to TRUE.
+          example: true
+        objectTypeId:
+          type: string
+          format: uuid
+          description: A reference to the type of resource which caused the alarm.
+          example: 91d5d140-ef52-4167-b6dc-975ad1897f23
+        objectId:
+          type: string
+          format: uuid
+          description: A reference to the resource which caused the alarm.
+          example: 91d5d140-ef52-4167-b6dc-975ad1897f23
+        perceivedSeverity:
+          $ref: '#/components/schemas/PerceivedSeverity'
+        objectClass:
+          type: string
+          minLength: 1
+          description: |
+            The fully qualified name of the class of the object (Resource or NodeCluster) which caused the alarm.
+            This is a mandatory, non-blank value.
+          example: oran.o2ims.cluster.NodeCluster
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
+            operator to extend the information provided about the O-Cloud Alarm.
+      required:
+      - alarmEventRecordId
+      - alarmDefinitionId
+      - probableCauseId
+      - alarmRaisedTime
+      - alarmAcknowledged
+      - perceivedSeverity
+      - extensions
+      - objectTypeId
+      - objectId
+      - objectClass
+
+    AlarmEventRecordModifications:
+      type: object
+      properties:
+        alarmAcknowledged:
+          type: boolean
+          description: Acknowledge an alarm.
+          example: false
+        perceivedSeverity:
+          $ref: '#/components/schemas/PerceivedSeverity'
+
+    AlarmServiceConfiguration:
+      type: object
+      properties:
+        retentionPeriod:
+          type: integer
+          description: |
+            Number of days for alarm history to be retained.
+            This value cannot be set lower than 1 (day).
+          example: 30
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
+      required:
+      - retentionPeriod
+
+    AlarmServiceConfigurationPatch:
+      type: object
+      description: Schema for PATCH requests allowing partial updates to AlarmServiceConfiguration
+      properties:
+        retentionPeriod:
+          type: integer
+          description: |
+            Number of days for alarm history to be retained.
+            This value cannot be set lower than 1 (day).
+          example: 30
+        extensions:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            RFC 7396 merge-patch semantics: an object value merges entries into the
+            stored extensions (null-valued keys remove entries); an explicit null
+            clears all extensions; omission leaves the stored value unchanged.
+
+    AlarmSubscriptionInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        alarmSubscriptionId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Identifier for the Alarm Subscription. This identifier is allocated by the O-Cloud.
+          example: 16d5fc54-cee0-4532-9826-2369f8240e1b
+        consumerSubscriptionId:
+          type: string
+          description: Identifier for the consumer of events sent due to the Subscription.
+          example: 16d5fc54-cee0-4532-9826-2369f8240e1b
+        eventFilter:
+          type: string
+          enum: [ NEW, CHANGE, CLEAR, ACKNOWLEDGE ]
+          nullable: true
+          description: |
+            Typed criteria for events which will be filtered by the subscription notification service.
+            It carries exclusion semantics: an event whose notificationEventType equals eventFilter is
+            not delivered. An omitted or null eventFilter excludes no event types, so all events are
+            eligible for delivery (O-RAN spec cardinality M/0..1). Responses include this key only
+            when a filter is set; an unset filter is represented by omitting the key.
+          example: NEW
+        callback:
+          type: string
+          format: uri
+          description: The fully qualified URI to a consumer procedure which can process a Post of the AlarmEventNotification.
+      required:
+      - callback
+
+    AlarmSubscriptionUpdate:
+      type: object
+      additionalProperties: false
+      description: |
+        Schema for RFC 7396 JSON Merge Patch requests to an Alarm Subscription.
+        Every field is optional. An omitted field is left unchanged; an explicit
+        null clears the field (callback cannot be cleared); a value replaces it.
+      properties:
+        callback:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            The fully qualified URI to a consumer procedure which can process a Post
+            of the AlarmEventNotification. A null value is rejected (callback cannot be cleared).
+        eventFilter:
+          type: string
+          enum: [ NEW, CHANGE, CLEAR, ACKNOWLEDGE ]
+          nullable: true
+          description: |
+            Typed criteria for events which will be filtered by the subscription notification service.
+            Omitting this field leaves the current value unchanged. A null value clears the eventFilter,
+            so no event types are excluded and all events are eligible for delivery. A value replaces it.
+        consumerSubscriptionId:
+          type: string
+          nullable: true
+          description: |
+            Identifier for the consumer of events sent due to the Subscription.
+            A null value clears the consumerSubscriptionId.
+
+    ProbableCause:
+      type: object
+      properties:
+        probableCauseId:
+          type: string
+          format: uuid
+          description: Identifier of the ProbableCause.
+          example: b45f64fe-6ed8-448d-8ff7-f5840090a075
+        name:
+          type: string
+          description: Human readable text of the probable cause derived from corresponding AlarmDefinition.
+          example: NodeClockNotSynchronising
+        description:
+          type: string
+          description: Any additional information beyond the name to describe the probableCause derived from corresponding AlarmDefinition.
+          example: Clock not synchronising.
+      required:
+      - probableCauseId
+      - name
+      - description
+
+    PerceivedSeverity:
+      type: integer
+      description: This is an enumerated set of values which identify the perceived severity of the alarm.
+      enum: [ 0, 1, 2, 3, 4, 5 ]
+      x-enum-varnames:
+      - CRITICAL
+      - MAJOR
+      - MINOR
+      - WARNING
+      - INDETERMINATE
+      - CLEARED
+      example: 1
+
+    AlertmanagerNotificationStatus:
+      type: string
+      enum: [ resolved, firing ]
+      description: Alertmanager notification status
+
+    Alert:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AlertmanagerNotificationStatus'
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        generatorURL:
+          type: string
+          format: uri
+          description: Identifies the entity that caused the alert
+        fingerprint:
+          type: string
+          description: Fingerprint to identify the alert
+
+    AlertmanagerNotification:
+      type: object
+      description: Alertmanager notification payload as described here https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+      properties:
+        version:
+          type: string
+        groupKey:
+          type: string
+          description: Key identifying the group of alerts (e.g. to deduplicate)
+        truncatedAlerts:
+          type: integer
+          description: How many alerts have been truncated due to "max_alerts"
+        status:
+          $ref: '#/components/schemas/AlertmanagerNotificationStatus'
+        receiver:
+          type: string
+        groupLabels:
+          type: object
+          additionalProperties:
+            type: string
+        commonLabels:
+          type: object
+          additionalProperties:
+            type: string
+        commonAnnotations:
+          type: object
+          additionalProperties:
+            type: string
+        externalURL:
+          type: string
+          format: uri
+          description: Backlink to the Alertmanager
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        subscriber:
+          type: object
+          description: Optional subscriber information, if a subscriber is found
+          properties:
+            callbackUrl:
+              type: string
+              format: uri
+              description: URL to call for notifying the subscriber
+      required:
+      - version
+      - groupKey
+      - status
+      - receiver
+      - alerts
+
+    AlarmEventNotification:
+      type: object
+      description: Alarm Event Notification sent to subscribers
+      properties:
+        globalCloudId:
+          type: string
+          format: uuid
+          description: The global cloud identifier assigned by the SMO.e
+          example: da4698ba-c8a7-429d-ae16-484f15f282c5
+        consumerSubscriptionId:
+          type: string
+          nullable: true
+          description: The value provided by the consumer in the subscription.
+          example: 3ddc1128-a14d-46de-80da-6414b192ce9f
+        notificationEventType:
+          type: integer
+          enum: [ 0, 1, 2, 3 ]
+          x-enum-varnames:
+          - NEW
+          - CHANGE
+          - CLEAR
+          - ACKNOWLEDGE
+          description: Notification event type values
+          example: 0
+        objectRef:
+          type: string
+          nullable: true
+          description: |
+            A reference to the AlarmEventRecord object. This is emitted as a root-relative
+            path (the trailing segment is the alarmEventRecordId). Consumers that require an
+            absolute URL must prepend the O-Cloud base URL; the absence of a configurable
+            public base URL is a known interoperability limitation.
+          example: /O2ims_infrastructureMonitoring/v2/alarms/bf3f8f2e-6f37-4882-96ad-c0b9cef6fc04
+        objectClass:
+          type: string
+          description: |
+            The fully qualified name of the class of the object (Resource or NodeCluster) which caused the alarm.
+          example: oran.o2ims.cluster.NodeCluster
+        alarmEventRecordId:
+          type: string
+          format: uuid
+          description: The URL to the AlarmEventRecord object.
+          example: 5f768e89-2ae1-477d-9978-173056154d5d
+        objectTypeId:
+          type: string
+          format: uuid
+          description: A reference to the type of resource which caused the alarm.
+          example: 91d5d140-ef52-4167-b6dc-975ad1897f23
+        objectId:
+          type: string
+          format: uuid
+          description: A reference to the resource instance which caused the alarm.
+          example: 3bff173d-a9d5-4157-858f-f934f6fdec45
+        alarmDefinitionId:
+          type: string
+          format: uuid
+          description: A reference to the Alarm Definition record in the Alarm Dictionary associated with the referenced ResourceType.
+          example: a3a505c7-84dc-4cff-baf8-36f33b3e70fc
+        probableCauseId:
+          type: string
+          format: uuid
+          description: A reference to the ProbableCause of the Alarm.
+          example: b3cd1cc7-8e5c-42fe-aaf5-59fd94e33a8a
+        alarmRaisedTime:
+          type: string
+          format: date-time
+          description: Date/Time stamp value when the AlarmEventRecord has been created.
+          example: 2042-07-21T20:32:28Z
+        alarmChangedTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date/Time stamp value when any value of the AlarmEventRecord has been modified.
+          example: 2042-07-21T21:32:28Z
+        alarmClearedTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date/Time stamp value when the alarm condition is cleared.
+          example: 2042-07-21T20:32:28Z
+        alarmAcknowledgeTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date/Time stamp value when the alarm condition is acknowledged.
+          example: 2042-07-21T22:32:28Z
+        alarmAcknowledged:
+          type: boolean
+          description: Boolean value indicating of a management system has acknowledged the alarm.
+          example: true
+        perceivedSeverity:
+          $ref: '#/components/schemas/PerceivedSeverity'
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
+            operator to extend the information provided about the O-Cloud Alarm.
+      required:
+      - globalCloudId
+      - consumerSubscriptionId
+      - notificationEventType
+      - objectRef
+      - objectClass
+      - alarmEventRecordId
+      - objectTypeId
+      - objectId
+      - alarmDefinitionId
+      - probableCauseId
+      - alarmRaisedTime
+      - alarmChangedTime
+      - alarmClearedTime
+      - alarmAcknowledgeTime
+      - alarmAcknowledged
+      - perceivedSeverity
+      - extensions
+
+    HardwareAlert:
+      type: object
+      description: Placeholder for hardware alert schema
+      # Add properties based on upcoming hardware alert structure

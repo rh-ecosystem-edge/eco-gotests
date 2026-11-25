@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
+# Synced with oran-o2ims commit cfec024dff6e61a9e0b92efd464ce5bd4be06f7f
 #
 # Copyright (c) 2024 Red Hat, Inc.
 #
@@ -18,7 +18,11 @@ openapi: 3.0.3
 info:
   title: O2IMS Infrastructure Artifacts API
   version: 1.0.0
-  description: API for O2IMS Infrastructure Artifacts
+  description: |
+    API for O2IMS Infrastructure Artifacts.
+
+    All responses carry a `Version: 1.0.0` HTTP response header, set by
+    the server's path-scoped middleware.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html

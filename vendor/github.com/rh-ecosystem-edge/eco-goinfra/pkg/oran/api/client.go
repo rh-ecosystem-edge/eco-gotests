@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms"
+	alarmsv2 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/inventory"
@@ -24,6 +25,8 @@ const (
 	ArtifactsClientType ClientType = "ArtifactsClient"
 	// AlarmsClientType is the client type for the alarms client.
 	AlarmsClientType ClientType = "AlarmsClient"
+	// AlarmsV2ClientType is the client type for the version 2 alarms client.
+	AlarmsV2ClientType ClientType = "AlarmsV2Client"
 	// ClusterClientType is the client type for the cluster client.
 	ClusterClientType ClientType = "ClusterClient"
 	// InventoryClientType is the client type for the inventory client.
@@ -196,6 +199,37 @@ func (builder *ClientBuilder) BuildAlarms() (*AlarmsClient, error) {
 	}
 
 	return &AlarmsClient{client}, nil
+}
+
+// BuildAlarmsV2 creates a new AlarmsV2Client using the configuration set on this builder. If the builder has an
+// error message, it will be returned here. This method does not modify the builder so the builder can be reused.
+//
+// Unlike the provisioning client, the alarms client does not serve as a runtimeclient.Client.
+func (builder *ClientBuilder) BuildAlarmsV2() (*AlarmsV2Client, error) {
+	if err := builder.validate(); err != nil {
+		return nil, err
+	}
+
+	var opts []alarmsv2.ClientOption
+
+	if builder.client != nil {
+		opts = append(opts, alarmsv2.WithHTTPClient(builder.client))
+	}
+
+	if builder.token != "" {
+		opts = append(opts, alarmsv2.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+builder.token)
+
+			return nil
+		}))
+	}
+
+	client, err := alarmsv2.NewClientWithResponses(builder.baseURL, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AlarmsV2Client{client}, nil
 }
 
 // BuildCluster creates a new ClusterClient using the configuration set on this builder. If the builder has an
