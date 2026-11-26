@@ -606,8 +606,8 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23 h1:qf
 github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23/go.mod h1:dqXnIfZrII4za/cbPkS2iTq2XogfBLsy8WDUeVr0gIs=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125114643-74a227e9ffbf h1:fJI847wU8IKILb00VNhOXBWSAuc2aCaiy7B2rq86DlU=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125114643-74a227e9ffbf/go.mod h1:P88nSaSVAZuJXR/02Hi/XtvHkoyeBG73BmNx/Q0YwtU=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125202648-2133574e0f8e h1:HKIY77JKWrap1251ZoGVrU7UJbj6jaMF3VEJKXyDMzw=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261125202648-2133574e0f8e/go.mod h1:P88nSaSVAZuJXR/02Hi/XtvHkoyeBG73BmNx/Q0YwtU=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rogpeppe/go-internal v1.15.0 h1:D0RCU5rMAp+SpgkiNdrjfJ+LX4J1M32V2NeCY7EJ6hc=
