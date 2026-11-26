@@ -80,7 +80,9 @@ func IsSriovDeployed(apiClient *clients.Settings, sriovOperatorNamespace string)
 	return nil
 }
 
-// WaitForSriovStable waits until all the SR-IOV node states are in sync.
+// WaitForSriovStable waits until SriovNetworkNodeStates and SriovNetworkPoolConfigs in the
+// namespace are stable: NodeState Ready=True then WaitUntilStable; each PoolConfig WaitUntilStable.
+// No-op for pools when none exist.
 func WaitForSriovStable(apiClient *clients.Settings, waitingTime time.Duration, sriovOperatorNamespace string) error {
 	klog.V(90).Infof("Waiting for SR-IOV become stable.")
 
@@ -94,9 +96,40 @@ func WaitForSriovStable(apiClient *clients.Settings, waitingTime time.Duration, 
 	}
 
 	for _, nodeState := range networkNodeStateList {
-		err = nodeState.WaitUntilSyncStatus("Succeeded", waitingTime)
+		err = nodeState.WaitForCondition(metav1.Condition{
+			Type:   srIovV1.ConditionReady,
+			Status: metav1.ConditionTrue,
+		}, waitingTime)
+		if err != nil {
+			if cond := nodeState.GetCondition(srIovV1.ConditionReady); cond != nil {
+				return fmt.Errorf("SriovNetworkNodeState %s not Ready (status=%s reason=%s): %w",
+					nodeState.Objects.Name, cond.Status, cond.Reason, err)
+			}
+
+			return fmt.Errorf("SriovNetworkNodeState %s Ready condition not met: %w",
+				nodeState.Objects.Name, err)
+		}
+
+		err = nodeState.WaitUntilStable(waitingTime)
 		if err != nil {
 			return err
+		}
+	}
+
+	poolConfigs, err := sriov.ListPoolConfigs(apiClient, sriovOperatorNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to fetch SriovNetworkPoolConfigs %w", err)
+	}
+
+	for _, poolConfig := range poolConfigs {
+		err = poolConfig.WaitUntilStable(waitingTime)
+		if err != nil {
+			name := poolConfig.Definition.Name
+			if poolConfig.Object != nil {
+				name = poolConfig.Object.Name
+			}
+
+			return fmt.Errorf("SriovNetworkPoolConfig %s not stable: %w", name, err)
 		}
 	}
 
