@@ -154,7 +154,8 @@ var _ = Describe("ORAN Security Tests", Label(tsparams.LabelPreProvision, tspara
 			currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRNameSecurity)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
-				To(Equal(provisioningv1alpha1.StateFailed))
+				To(Equal(provisioningv1alpha1.StateFailed),
+					"Expected ProvisioningRequest to fail when clusterName matches an existing unowned namespace")
 			Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
 				To(ContainSubstring(tsparams.PRExistingNamespaceDetailsSubstring),
 					"Expected provisioning details to report namespace already exists")
