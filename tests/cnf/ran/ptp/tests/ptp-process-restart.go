@@ -33,7 +33,6 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 	var (
 		prometheusAPI        prometheusv1.API
 		savedPtpConfigs      []*ptp.PtpConfigBuilder
-		configSupported      bool
 		clockClass7Supported bool
 	)
 
@@ -67,9 +66,6 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 
-		configSupported, err = version.IsVersionStringInRange(
-			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21.0-0", "")
-		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 		clockClass7Supported, err = version.IsVersionStringInRange(
 			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check clock class 7 supported")
@@ -535,11 +531,11 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 					var configFile string
-					if configSupported {
-						configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-							RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Ts2phc)
-						Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeInfo.Name)
-					}
+
+					configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
+						RANConfig.Spoke1APIClient, nodeInfo.Name,
+						RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
+					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeInfo.Name)
 
 					By("waiting for the ptp4l clock class to transition to 6 on metrics")
 
@@ -812,11 +808,11 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 			var configFile string
-			if configSupported {
-				configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-					RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Ts2phc)
-				Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeInfo.Name)
-			}
+
+			configFile, err = processes.GetPtp4lConfigByRelatedProcessIfSupported(
+				RANConfig.Spoke1APIClient, nodeInfo.Name,
+				RANConfig.Spoke1OperatorVersions[ranparam.PTP], processes.Ts2phc)
+			Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeInfo.Name)
 
 			By("waiting for the ptp4l clock class to transition to 6 on metrics")
 
