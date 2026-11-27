@@ -7,7 +7,7 @@ The [eco-gotests](https://github.com/openshift-kni/eco-gotests) is the downstrea
 The project is based on golang+[ginkgo](https://onsi.github.io/ginkgo) framework.
 
 ### Project requirements
-* golang v1.24.x
+* Go 1.27 or later. The repository prefers Go 1.27.4 as declared in [go.mod](go.mod).
 * ginkgo v2.x
 
 ## eco-gotests
@@ -100,6 +100,25 @@ Executing eco-gotests test-runner script
 scripts/test-runner.sh
 ginkgo -timeout=24h --keep-going --require-suite -r --label-filter="platform-selection || image-service-statefulset" ./tests/assisted/ztp ./tests/hw-accel/kmm
 ```
+### Sandbox validation
+
+Install Bash, jq, GNU Coreutils, and the exact Go toolchain declared in
+[go.mod](go.mod). From the repository root, run the shared unit test smoke
+check or pass the local directories of affected Go packages:
+
+```bash
+make fullsend-agent-validation
+bash scripts/fullsend-agent-validation.sh ./tests/internal/klogfilter ./tests/internal/reporter
+```
+
+Select package directories inside the checkout whose tests run without a
+cluster or hardware. Each argument must be a direct, repository-relative
+directory path beginning with `./`. The validator checks formatting, runs
+vet and unit tests, and reports which packages completed zero tests. It
+fails if no tests complete across the selection or if any check fails.
+Run its own regression tests with
+`bash scripts/fullsend-agent-validation-test.sh`.
+
 # eco-gotests - How to contribute
 
 The project uses a development method - forking workflow

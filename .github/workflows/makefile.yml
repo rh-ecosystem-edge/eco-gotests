@@ -26,6 +26,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Test Fullsend validation script
+        run: bash scripts/fullsend-agent-validation-test.sh
+
       - name: Run lint
         run: make lint
 

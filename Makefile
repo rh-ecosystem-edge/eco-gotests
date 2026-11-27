@@ -3,7 +3,7 @@ BASE_IMG ?= eco-gotests
 BASE_TAG ?= latest
 
 GO_PACKAGES=$(shell go list ./... | grep -v vendor)
-.PHONY: vet lint deps-update sync-eco-goinfra install-ginkgo build-docker-image-ran-du install test coverage-html run-internal-pkg-unit-tests run-ran-pkg-unit-tests run-system-tests-pkg-unit-tests
+.PHONY: vet lint deps-update sync-eco-goinfra install-ginkgo build-docker-image-ran-du install test coverage-html run-internal-pkg-unit-tests run-ran-pkg-unit-tests run-system-tests-pkg-unit-tests fullsend-agent-validation
 vet:
 	go vet ${GO_PACKAGES}
 
@@ -55,6 +55,11 @@ run-ran-pkg-unit-tests:
 run-system-tests-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"
 	UNIT_TEST=true go test -v -tags=unit_test ./tests/system-tests/internal/... ./tests/system-tests/.../internal/...
+
+# Run the shared sandbox smoke test. Pass affected package directories to
+# scripts/fullsend-agent-validation.sh for targeted checks.
+fullsend-agent-validation:
+	bash scripts/fullsend-agent-validation.sh
 
 # Rather than run each unit test target individually, run all unit tests in one go.
 test:

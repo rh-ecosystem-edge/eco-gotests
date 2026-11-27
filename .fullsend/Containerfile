@@ -1,0 +1,24 @@
+# Repository-specific Fullsend code image.
+# Keep the Fullsend sandbox as the final image so its runtime and security
+# tooling remain unchanged; add only the versions required by eco-gotests.
+
+FROM docker.io/library/golang:1.27.4-trixie@sha256:430985542100b871e108ccc00e8dcc5eef08ca14ee5825e98ebf563d8ffec4ee AS go-toolchain
+FROM docker.io/golangci/golangci-lint:v2.15.0@sha256:fbfcfd12a6f8d7f1b97b3362ca80fc2a244d46863148c73cb88e7793af96c481 AS golangci
+# Pinned Fullsend code image; update deliberately when the upstream image is
+# refreshed and verify its published digest first.
+FROM ghcr.io/fullsend-ai/fullsend-code@sha256:3055d4f52136a7c89fb8aa1976b468a5f9dd929c6be55fd6cd958e222c6e18ca
+
+USER root
+
+RUN rm -rf /usr/local/go
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+COPY --from=golangci /usr/bin/golangci-lint /usr/local/bin/golangci-lint
+
+RUN chmod 0755 /usr/local/bin/golangci-lint
+
+USER sandbox
+
+ENV GOTOOLCHAIN=local \
+    PATH=/usr/local/go/bin:${PATH}:/sandbox/go/bin
+
+RUN go version && golangci-lint version
