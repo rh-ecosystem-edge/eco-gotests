@@ -57,6 +57,21 @@ func TestWriterFiltersTunnelingDiagnostics(t *testing.T) {
 				" >\r\n" +
 				"I1106 12:00:00.000000    1234 other.go:12] next message\n",
 		},
+		{
+			name: "request body records are dropped",
+			input: "I1106 12:00:00.000000    1234 request.go:762] \"Request Body\" body=<\r\n" +
+				"\t7b 7d                                             |{}|\r\n" +
+				" >\r\n" +
+				"I1106 12:00:00.000000    1234 other.go:12] next message\n",
+			want: "I1106 12:00:00.000000    1234 other.go:12] next message\n",
+		},
+		{
+			name: "curl command records are dropped",
+			input: "I1106 12:00:00.000000    1234 round_trippers.go:527] \"Request\" " +
+				"curlCommand=\"curl -k -X GET https://api.example.test\"\n" +
+				"I1106 12:00:00.000000    1234 other.go:12] next message\n",
+			want: "I1106 12:00:00.000000    1234 other.go:12] next message\n",
+		},
 	}
 
 	for _, test := range tests {
