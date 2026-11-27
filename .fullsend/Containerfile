@@ -14,11 +14,19 @@ RUN rm -rf /usr/local/go
 COPY --from=go-toolchain /usr/local/go /usr/local/go
 COPY --from=golangci /usr/bin/golangci-lint /usr/local/bin/golangci-lint
 
-RUN chmod 0755 /usr/local/bin/golangci-lint
+# Fullsend's agent shell can replace the image PATH but keeps /usr/local/bin.
+RUN chmod 0755 /usr/local/bin/golangci-lint \
+    && ln -s /usr/local/go/bin/go /usr/local/bin/go \
+    && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
 USER sandbox
 
 ENV GOTOOLCHAIN=local \
     PATH=/usr/local/go/bin:${PATH}:/sandbox/go/bin
 
-RUN go version && golangci-lint version
+RUN export PATH=/usr/local/bin:/usr/bin:/bin \
+    && test "$(command -v go)" = /usr/local/bin/go \
+    && test "$(command -v gofmt)" = /usr/local/bin/gofmt \
+    && go version \
+    && printf 'package smoke\n' | gofmt \
+    && golangci-lint version
