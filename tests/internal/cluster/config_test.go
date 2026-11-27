@@ -3,6 +3,7 @@
 package cluster
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -15,7 +16,9 @@ import (
 )
 
 type MockAPIClientGetter struct {
-	testClients *clients.Settings
+	testClients    *clients.Settings
+	apiClientError error
+	returnNil      bool
 }
 
 // NewMockAPIClientGetter returns a new instance of MockAPIClientGetter.
@@ -34,13 +37,142 @@ func (m *MockAPIClientGetter) SetFakeOCPClient(runtimeObjs []runtime.Object) {
 	})
 }
 
+// SetAPIClientError configures the mock to return an error when getting the API client.
+func (m *MockAPIClientGetter) SetAPIClientError(err error) {
+	m.apiClientError = err
+}
+
+// SetNilAPIClient configures the mock to return a nil API client without an error.
+func (m *MockAPIClientGetter) SetNilAPIClient() {
+	m.returnNil = true
+}
+
 // GetAPIClient returns the fake k8s client settings struct.
 func (m *MockAPIClientGetter) GetAPIClient() (*clients.Settings, error) {
+	if m.apiClientError != nil {
+		return nil, m.apiClientError
+	}
+
+	if m.returnNil {
+		return nil, nil //nolint:nilnil // The nil client is the behavior under test.
+	}
+
 	if m.testClients == nil {
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
 
 	return m.testClients, nil
+}
+
+//nolint:funlen // The table covers every cluster information helper and client failure mode.
+func TestClusterInformationHelpersUnavailableAPIClient(t *testing.T) {
+	const getterErrorMessage = "api client is unavailable"
+
+	testCases := []struct {
+		name    string
+		call    func(APIClientGetter) (any, error)
+		wrapErr string
+	}{
+		{
+			name: "cluster version",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPClusterVersion(clusterObj)
+			},
+		},
+		{
+			name: "network config",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPNetworkConfig(clusterObj)
+			},
+		},
+		{
+			name: "network operator config",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPNetworkOperatorConfig(clusterObj)
+			},
+		},
+		{
+			name: "pull secret",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPPullSecret(clusterObj)
+			},
+		},
+		{
+			name: "proxy",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPProxy(clusterObj)
+			},
+		},
+		{
+			name: "connected",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return Connected(clusterObj)
+			},
+			wrapErr: "failed to get clusterversion from cluster: ",
+		},
+		{
+			name: "disconnected",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return Disconnected(clusterObj)
+			},
+			wrapErr: "failed to get clusterversion from cluster: ",
+		},
+		{
+			name: "cluster name",
+			call: func(clusterObj APIClientGetter) (any, error) {
+				return GetOCPClusterName(clusterObj)
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			for _, unavailableClient := range []struct {
+				name      string
+				configure func(*MockAPIClientGetter)
+			}{
+				{
+					name: "getter error",
+					configure: func(mockAPIClient *MockAPIClientGetter) {
+						mockAPIClient.SetAPIClientError(errors.New(getterErrorMessage))
+					},
+				},
+				{
+					name: "nil client",
+					configure: func(mockAPIClient *MockAPIClientGetter) {
+						mockAPIClient.SetNilAPIClient()
+					},
+				},
+			} {
+				t.Run(unavailableClient.name, func(t *testing.T) {
+					mockAPIClient := NewMockAPIClientGetter()
+					unavailableClient.configure(mockAPIClient)
+
+					result, err := testCase.call(mockAPIClient)
+
+					assert.Zero(t, result)
+
+					expectedError := expectedUnavailableClientError(unavailableClient.name)
+					switch {
+					case testCase.wrapErr != "":
+						expectedError = testCase.wrapErr + expectedError
+					case unavailableClient.name == "getter error":
+						expectedError = getterErrorMessage
+					}
+
+					assert.EqualError(t, err, expectedError)
+				})
+			}
+		})
+	}
+}
+
+func expectedUnavailableClientError(clientState string) string {
+	if clientState == "getter error" {
+		return "api client is unavailable"
+	}
+
+	return "cannot discover cluster information when APIClient is nil"
 }
 
 func generateFakeClusterVersion(version string) runtime.Object {
