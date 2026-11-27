@@ -26,6 +26,7 @@ agents:
       model: openai/gpt-5.6-luna
       effort: medium
       harness:
+          image: ghcr.io/rh-ecosystem-edge/eco-gotests-fullsend-code@sha256:a5979bab94b60fcbeafe8a5eebcce0555b24c6ddbef665abcb48d3ed9ed3da3e
           skills:
               - skills/eco-gotests-validation
     - name: review
@@ -40,6 +41,7 @@ agents:
       model: openai/gpt-5.6-luna
       effort: medium
       harness:
+          image: ghcr.io/rh-ecosystem-edge/eco-gotests-fullsend-code@sha256:a5979bab94b60fcbeafe8a5eebcce0555b24c6ddbef665abcb48d3ed9ed3da3e
           skills:
               - skills/eco-gotests-validation
 allowed_remote_resources:
