@@ -3,17 +3,16 @@ package tsparams
 import "k8s.io/klog/v2"
 
 const (
-	// LabelSuite is the label applied to all cases in the oran suite.
+	// LabelSuite is the label applied to all cases in the O-RAN subsuites.
 	LabelSuite = "oran"
-	// LabelPreProvision is the label applied to the pre-provision test cases and any other test cases that are
-	// intended to be run before provisioning.
+	// LabelPreProvision is the label applied to the pre-provision subsuite.
 	LabelPreProvision = "pre-provision"
-	// LabelProvision is the label applied to just the provision test cases.
+	// LabelProvision is the label applied to the provision subsuite.
 	LabelProvision = "provision"
-	// LabelPostProvision is the label applied to just the post-provision test cases.
+	// LabelPostProvision is the label applied to the post-provision subsuite.
 	LabelPostProvision = "post-provision"
-	// LabelMetal3Day2 is the label applied to just the day-2 Metal3 test cases. It is designed to be run after the
-	// post-provision tests.
+	// LabelMetal3Day2 is the label applied to the day-2 Metal3 subsuite. It is designed to be run after the
+	// post-provision subsuite.
 	LabelMetal3Day2 = "metal3-day2"
 	// LabelTemplateInventory is the label applied to just the template inventory test cases.
 	LabelTemplateInventory = "template-inventory"

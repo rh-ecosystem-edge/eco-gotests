@@ -19,7 +19,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("ORAN Security Tests", Label(tsparams.LabelPreProvision, tsparams.LabelSecurity), func() {
+var _ = Describe("ORAN Security Tests", Label(tsparams.LabelSecurity), func() {
 	var o2imsAPIClient runtimeclient.Client
 
 	BeforeEach(func() {

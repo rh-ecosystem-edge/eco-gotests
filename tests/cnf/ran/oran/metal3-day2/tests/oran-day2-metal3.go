@@ -34,7 +34,7 @@ import (
 
 // 83883 only requires hardware to be allocated to the primary PR, not a fulfilled install. It runs in a separate
 // Describe so it can complete TCFE while the primary PR is still failed/progressing but hardware is claimed.
-var _ = Describe("ORAN Metal3 Day2 Hardware Allocation", Label(tsparams.LabelMetal3Day2), func() {
+var _ = Describe("ORAN Metal3 Day2 Hardware Allocation", func() {
 	var o2imsAPIClient runtimeclient.Client
 
 	BeforeEach(func() {
@@ -102,7 +102,7 @@ var _ = Describe("ORAN Metal3 Day2 Hardware Allocation", Label(tsparams.LabelMet
 	})
 })
 
-var _ = Describe("ORAN Metal3 Day2 Tests", Label(tsparams.LabelMetal3Day2), Ordered, ContinueOnFailure, func() {
+var _ = Describe("ORAN Metal3 Day2 Tests", Ordered, ContinueOnFailure, func() {
 	var o2imsAPIClient runtimeclient.Client
 
 	BeforeEach(func() {
@@ -132,7 +132,7 @@ var _ = Describe("ORAN Metal3 Day2 Tests", Label(tsparams.LabelMetal3Day2), Orde
 
 		By("updating the ProvisioningRequest to reference new ClusterTemplate with BMC firmware update")
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 		newTemplateVersion := RANConfig.ClusterTemplateAffix + "-" + tsparams.TemplateBMCFirmwareUpdate
 		prBuilder.Definition.Spec.TemplateVersion = newTemplateVersion
 		prBuilder, err = prBuilder.Update()
@@ -159,7 +159,7 @@ var _ = Describe("ORAN Metal3 Day2 Tests", Label(tsparams.LabelMetal3Day2), Orde
 
 		By("updating the ProvisioningRequest to reference new ClusterTemplate with BIOS firmware update")
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 		newTemplateVersion := RANConfig.ClusterTemplateAffix + "-" + tsparams.TemplateBIOSFirmwareUpdate
 		prBuilder.Definition.Spec.TemplateVersion = newTemplateVersion
 		prBuilder, err = prBuilder.Update()
@@ -186,7 +186,7 @@ var _ = Describe("ORAN Metal3 Day2 Tests", Label(tsparams.LabelMetal3Day2), Orde
 
 		By("updating the ProvisioningRequest to reference new ClusterTemplate with BIOS settings update")
 
-		updateTime := getStartTime()
+		updateTime := helper.GetStartTime()
 		newTemplateVersion := RANConfig.ClusterTemplateAffix + "-" + tsparams.TemplateBIOSSettingsUpdate
 		prBuilder.Definition.Spec.TemplateVersion = newTemplateVersion
 		prBuilder, err = prBuilder.Update()

@@ -13,5 +13,5 @@
 // Domain packages (o2imscluster, o2imsinventory) own mapping hub state to API types and call into o2imstest for common
 // parsing and cross-cutting assertions. They follow the same design: accumulate errors with errors.Join, prefer
 // [cmp.Diff] on small views where full object comparison is needed, and unit-test pure logic without constructing full
-// test builders—integration coverage remains in the oran Ginkgo suite.
+// test builders—integration coverage remains in the O-RAN Ginkgo subsuites.
 package o2imstest
