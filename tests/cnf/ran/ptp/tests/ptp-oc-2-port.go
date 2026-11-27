@@ -24,7 +24,10 @@ import (
 )
 
 var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInterfaces), func() {
-	var prometheusAPI prometheusv1.API
+	var (
+		prometheusAPI prometheusv1.API
+		baseline      *profiles.Baseline
+	)
 
 	BeforeEach(func() {
 		var err error
@@ -43,6 +46,20 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		if !inRange {
 			Skip("Test is valid from version 4.18")
 		}
+
+		By("capturing the converged process baseline before testing")
+
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
+
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order.
+		DeferCleanup(func() {
+			By("waiting for the cluster to settle")
+
+			err := profiles.Settle(RANConfig.Spoke1APIClient, prometheusAPI, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to settle the cluster")
+		})
 	})
 
 	// 80963 - Verifies 2-port OC HA failover when active port goes down

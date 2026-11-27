@@ -6,7 +6,6 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
@@ -32,6 +31,7 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 		prometheusAPI        prometheusv1.API
 		configSupported      bool
 		assertOsClockFreerun bool
+		baseline             *profiles.Baseline
 	)
 
 	eventTimeout := 5 * time.Minute
@@ -63,17 +63,21 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 		// OsClockSyncStateChange FREERUN event is supported from PTP version 4.20.0
 		assertOsClockFreerun = configSupported
-	})
 
-	AfterEach(func() {
-		if CurrentSpecReport().State == types.SpecStateSkipped {
-			return
-		}
+		By("capturing the converged process baseline before testing")
 
-		By("ensuring clocks are locked after testing")
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
 
-		err := metrics.EnsureClocksAreLocked(prometheusAPI)
-		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order. This suite changes holdover
+		// settings from its own DeferCleanup, so it has to settle after those.
+		DeferCleanup(func() {
+			By("waiting for the cluster to settle")
+
+			err := profiles.Settle(RANConfig.Spoke1APIClient, prometheusAPI, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to settle the cluster")
+		})
 	})
 
 	// 78463 - verifies t-gm transition from holdover to locked due to gnss recovery

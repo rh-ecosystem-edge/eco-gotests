@@ -45,7 +45,10 @@ func backCompatTTSCClockClasses() profiles.HoldoverExpectedClockClasses {
 }
 
 var _ = Describe("PTP Holdover", Label(tsparams.LabelTBCTSCHoldover), func() {
-	var prometheusAPI prometheusv1.API
+	var (
+		prometheusAPI prometheusv1.API
+		baseline      *profiles.Baseline
+	)
 
 	BeforeEach(func() {
 		var err error
@@ -64,6 +67,21 @@ var _ = Describe("PTP Holdover", Label(tsparams.LabelTBCTSCHoldover), func() {
 		if !inRange {
 			Skip("Test is valid from version 4.20")
 		}
+
+		By("capturing the converged process baseline before testing")
+
+		baseline, err = profiles.CaptureBaseline(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to capture process baseline")
+
+		// Registered from the BeforeEach so it runs after any DeferCleanup an It registers: Ginkgo runs
+		// cleanup nodes after every AfterEach, in reverse registration order. This suite writes PtpConfigs
+		// and HardwareConfigs from its own DeferCleanup, so it has to settle after those.
+		DeferCleanup(func() {
+			By("waiting for the cluster to settle")
+
+			err := profiles.Settle(RANConfig.Spoke1APIClient, prometheusAPI, baseline)
+			Expect(err).ToNot(HaveOccurred(), "Failed to settle the cluster")
+		})
 	})
 
 	Context("t-bc upstream clock loss & unassisted holdover", func() {

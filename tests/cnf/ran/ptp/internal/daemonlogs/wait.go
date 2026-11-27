@@ -289,25 +289,3 @@ func WaitForProfileLoadOnNodes(
 
 	return nil
 }
-
-// WaitForProfileLoadOnPTPNodes waits for the profile load message to appear in the PTP daemon pod logs on all PTP
-// daemon nodes. It will check each node concurrently and return all errors that occur. Similar to [WaitForProfileLoad],
-// it uses the provided options for the WaitForPodLog function.
-func WaitForProfileLoadOnPTPNodes(client *clients.Settings, options ...WaitForPodLogOption) error {
-	nodes, err := ptpdaemon.ListPtpDaemonNodes(client)
-	if err != nil {
-		return fmt.Errorf("failed to list PTP daemon nodes: %w", err)
-	}
-
-	nodeNames := make([]string, len(nodes))
-	for index, node := range nodes {
-		nodeNames[index] = node.Definition.Name
-	}
-
-	err = WaitForProfileLoadOnNodes(client, nodeNames, options...)
-	if err != nil {
-		return fmt.Errorf("failed to wait for profile load on PTP daemon nodes: %w", err)
-	}
-
-	return nil
-}
