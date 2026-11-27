@@ -4,6 +4,7 @@
 package sma
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -16,54 +17,255 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// DisconnectSma disables the given SMA pin on the node. It first tries the sysfs path; if the
-// pin file is absent (ice driver migrated to DPLL netlink), it falls back to the host DPLL CLI.
+const (
+	// hostDpllBin invokes the host's dpll CLI from inside the PTP daemon pod by entering the mount and network
+	// namespaces of PID 1. The binary ships with iproute2 >= 6.17 and is absent from older RHCOS images.
+	hostDpllBin = "nsenter -t 1 -m -n -- /usr/sbin/dpll"
+	// podDpllBin invokes a dpll CLI shipped in the PTP daemon container image itself. No nsenter is needed since
+	// the daemon pod uses the host network, so DPLL netlink is reachable directly.
+	podDpllBin = "dpll"
+)
+
+// ErrSmaUnsupported is returned when an SMA pin cannot be inspected or manipulated on a node because neither the
+// legacy sysfs pin file nor a dpll CLI is available. Callers that can skip instead of failing should use
+// [GetCapability] to detect this before attempting any SMA operation.
+var ErrSmaUnsupported = errors.New(
+	"no sysfs SMA pin file and no dpll CLI (iproute2 >= 6.17) on the host or in the PTP daemon pod")
+
+// Capability describes the mechanism available on a node for inspecting and manipulating an SMA pin. SMA pin control
+// moved from sysfs to the DPLL netlink subsystem in newer ice drivers, and the userspace dpll CLI that exposes it is
+// only present on sufficiently new hosts, so neither mechanism can be assumed.
+type Capability int
+
+const (
+	// CapabilityNone means the SMA pin cannot be controlled at all on this node.
+	CapabilityNone Capability = iota
+	// CapabilitySysfs means the legacy sysfs pin file is present and is used to control the pin.
+	CapabilitySysfs
+	// CapabilityHostDpll means the host provides /usr/sbin/dpll, reached from the daemon pod via nsenter.
+	CapabilityHostDpll
+	// CapabilityPodDpll means the PTP daemon container image ships a dpll CLI on its PATH.
+	CapabilityPodDpll
+)
+
+// String returns a human readable name for the capability.
+func (capability Capability) String() string {
+	switch capability {
+	case CapabilitySysfs:
+		return "sysfs"
+	case CapabilityHostDpll:
+		return "host dpll CLI"
+	case CapabilityPodDpll:
+		return "pod dpll CLI"
+	case CapabilityNone:
+		return "none"
+	default:
+		return "unknown"
+	}
+}
+
+// dpllBin returns the dpll CLI invocation for this capability, or an empty string for capabilities that are not based
+// on the dpll CLI.
+func (capability Capability) dpllBin() string {
+	switch capability {
+	case CapabilityHostDpll:
+		return hostDpllBin
+	case CapabilityPodDpll:
+		return podDpllBin
+	case CapabilitySysfs, CapabilityNone:
+		return ""
+	default:
+		return ""
+	}
+}
+
+// requireDpllBin returns the dpll CLI invocation for this capability, or [ErrSmaUnsupported] when the pin cannot be
+// controlled through the dpll CLI.
+func (capability Capability) requireDpllBin(ifaceName iface.Iface, pinName string) (string, error) {
+	dpllBin := capability.dpllBin()
+	if dpllBin == "" {
+		return "", fmt.Errorf("cannot control %s pin for interface %s: %w", pinName, ifaceName, ErrSmaUnsupported)
+	}
+
+	return dpllBin, nil
+}
+
+// GetCapability determines how the given SMA pin can be controlled on the node, preferring the legacy sysfs pin file
+// and falling back to the host dpll CLI then a dpll CLI inside the daemon pod. It returns (CapabilityNone, nil) when
+// the pin cannot be found on the node, and (CapabilityNone, error) when infrastructure prevents discovery (e.g., the
+// daemon pod is unavailable or kubectl exec is denied). Callers should skip on the former and fail on the latter.
+func GetCapability(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (Capability,
+	error) {
+	exists, err := hasSysfsSmaPin(client, nodeName, ifaceName, pinName)
+	if err != nil {
+		return CapabilityNone, fmt.Errorf("failed to probe sysfs SMA pin on node %s: %w", nodeName, err)
+	}
+
+	if exists {
+		return CapabilitySysfs, nil
+	}
+
+	klog.V(tsparams.LogLevel).Infof(
+		"sysfs %s pin not found for %s on node %s, looking for a dpll CLI", pinName, ifaceName, nodeName)
+
+	var lastError error
+
+	for _, capability := range []Capability{CapabilityHostDpll, CapabilityPodDpll} {
+		exists, err := hasDpllCLI(client, nodeName, capability.dpllBin())
+		if err != nil {
+			lastError = err
+
+			continue
+		}
+
+		if exists {
+			return capability, nil
+		}
+	}
+
+	if lastError != nil {
+		return CapabilityNone, fmt.Errorf(
+			"failed to probe DPLL CLI on node %s after sysfs probe failed: %w", nodeName, lastError)
+	}
+
+	klog.V(tsparams.LogLevel).Infof("no dpll CLI available on node %s for %s pin %s", nodeName, ifaceName, pinName)
+
+	return CapabilityNone, nil
+}
+
+// hasDpllCLI reports whether the given dpll CLI invocation is usable from the PTP daemon pod. It runs the read-only
+// "device show" subcommand and returns (true, nil) on success, (false, nil) when the binary is not found, and
+// (false, error) when infrastructure prevents the probe (e.g., the daemon pod is unreachable or kubectl exec is
+// denied).
+// The probe is retried with a short delay to account for transient daemon or netlink unavailability.
+func hasDpllCLI(client *clients.Settings, nodeName, dpllBin string) (bool, error) {
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, dpllBin+" device show",
+		ptpdaemon.WithRetries(2),
+		ptpdaemon.WithRetryOnError(true),
+		ptpdaemon.WithRetryDelay(10*time.Second))
+	if err != nil {
+		// Exit code 127 means command not found, which is expected when the dpll binary is not available.
+		// Treat this as binary absence (false, nil), not as an infrastructure error.
+		if strings.Contains(strings.ToLower(err.Error()), "exit code 127") {
+			return false, nil
+		}
+
+		klog.V(tsparams.LogLevel).Infof("dpll CLI %q probe on node %s: %v", dpllBin, nodeName, err)
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// DisconnectSma disables the given SMA pin on the node, using whichever mechanism [GetCapability] reports. It returns
+// an error wrapping [ErrSmaUnsupported] when the pin cannot be controlled, or any infrastructure error from discovery.
 func DisconnectSma(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
-	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
+	capability, err := GetCapability(client, nodeName, ifaceName, pinName)
+	if err != nil {
+		return err
+	}
+
+	return DisconnectSmaWithCapability(client, nodeName, ifaceName, pinName, capability)
+}
+
+// ReconnectSma restores the given SMA pin to smaConfig (e.g. "1 1"), using whichever mechanism [GetCapability]
+// reports. On the DPLL path, smaConfig is not used because it is a sysfs-format string that has no meaning in the DPLL
+// subsystem; reconnectSmaViaDpll uses prio=3 as the conventional default instead. It returns an error wrapping
+// [ErrSmaUnsupported] when the pin cannot be controlled, or any infrastructure error from discovery.
+func ReconnectSma(
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, smaConfig string) error {
+	capability, err := GetCapability(client, nodeName, ifaceName, pinName)
+	if err != nil {
+		return err
+	}
+
+	return ReconnectSmaWithCapability(client, nodeName, ifaceName, pinName, smaConfig, capability)
+}
+
+// IsSmaConnected returns true if the given SMA pin is actively connected, using whichever mechanism [GetCapability]
+// reports. It returns an error wrapping [ErrSmaUnsupported] when the pin cannot be inspected, or any infrastructure
+// error from discovery.
+func IsSmaConnected(
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
+	capability, err := GetCapability(client, nodeName, ifaceName, pinName)
+	if err != nil {
+		return false, err
+	}
+
+	return IsSmaConnectedWithCapability(client, nodeName, ifaceName, pinName, capability)
+}
+
+// DisconnectSmaWithCapability disables the SMA pin using a pre-probed capability, avoiding redundant [GetCapability]
+// calls when the capability is already known.
+func DisconnectSmaWithCapability(
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string, capability Capability) error {
+	if capability == CapabilitySysfs {
 		return disconnectSmaViaSysfs(client, nodeName, ifaceName, pinName)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	dpllBin, err := capability.requireDpllBin(ifaceName, pinName)
+	if err != nil {
+		return err
+	}
 
-	return disconnectSmaViaDpll(client, nodeName, ifaceName, pinName)
+	return disconnectSmaViaDpll(client, nodeName, ifaceName, pinName, dpllBin)
 }
 
-// ReconnectSma restores the given SMA pin to smaConfig (e.g. "1 1"). It first tries the sysfs
-// path; if the pin file is absent, it falls back to the host DPLL CLI. On the DPLL path, smaConfig
-// is not used because it is a sysfs-format string that has no meaning in the DPLL subsystem;
-// reconnectSmaViaDpll uses prio=3 as the conventional default instead.
-func ReconnectSma(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, smaConfig string) error {
-	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
+// ReconnectSmaWithCapability restores the SMA pin using a pre-probed capability, avoiding redundant [GetCapability]
+// calls when the capability is already known.
+func ReconnectSmaWithCapability(
+	client *clients.Settings,
+	nodeName string, ifaceName iface.Iface, pinName, smaConfig string, capability Capability) error {
+	if capability == CapabilitySysfs {
 		return reconnectSmaViaSysfs(client, nodeName, ifaceName, pinName, smaConfig)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	dpllBin, err := capability.requireDpllBin(ifaceName, pinName)
+	if err != nil {
+		return err
+	}
 
-	return reconnectSmaViaDpll(client, nodeName, ifaceName, pinName)
+	return reconnectSmaViaDpll(client, nodeName, ifaceName, pinName, dpllBin)
 }
 
-// IsSmaConnected returns true if the given SMA pin is actively connected. It first tries the
-// sysfs path; if the pin file is absent, it falls back to the host DPLL CLI.
-func IsSmaConnected(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
-	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
+// IsSmaConnectedWithCapability returns true if the SMA pin is actively connected using a pre-probed capability,
+// avoiding redundant [GetCapability] calls when the capability is already known.
+func IsSmaConnectedWithCapability(
+	client *clients.Settings,
+	nodeName string, ifaceName iface.Iface, pinName string, capability Capability) (bool, error) {
+	if capability == CapabilitySysfs {
 		return isSmaConnectedViaSysfs(client, nodeName, ifaceName, pinName)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	dpllBin, err := capability.requireDpllBin(ifaceName, pinName)
+	if err != nil {
+		return false, err
+	}
 
-	return isSmaConnectedViaDpll(client, nodeName, ifaceName, pinName)
+	return isSmaConnectedViaDpll(client, nodeName, ifaceName, pinName, dpllBin)
 }
 
 // hasSysfsSmaPin checks whether the legacy sysfs pin file exists for the given interface and pin
-// name. Returns false when the ice driver has migrated pin management to the DPLL netlink subsystem.
-func hasSysfsSmaPin(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) bool {
+// name. Returns (true, nil) when the pin file exists, (false, nil) when the ice driver has migrated pin
+// management to the DPLL netlink subsystem, and (false, error) when infrastructure prevents the check
+// (e.g., the daemon pod is unreachable or kubectl exec is denied). The file not found condition (ls exit code 2)
+// is treated as absence, not as an error.
+func hasSysfsSmaPin(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
 	cmd := fmt.Sprintf("ls /sys/class/net/%s/device/ptp/*/pins/%s 2>/dev/null", ifaceName, pinName)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd)
+	if err != nil {
+		// ls exit code 2 means file not found, which is expected on systems with DPLL-based pin management.
+		// Treat this as file absence (false, nil), not as an infrastructure error.
+		if strings.Contains(strings.ToLower(err.Error()), "exit code 2") {
+			return false, nil
+		}
 
-	return err == nil && strings.TrimSpace(out) != ""
+		return false, err
+	}
+
+	return strings.TrimSpace(out) != "", nil
 }
 
 // readSysfsSmaPin reads the current sysfs SMA pin file, which holds two space-separated
@@ -142,16 +344,16 @@ var dpllPinIDPattern = regexp.MustCompile(`(?:^|\s)(?:id\s+)?(\d+)\s*$`)
 const dpllDirectionOutput = "output"
 
 // getDpllSmaPinID resolves the DPLL pin ID for the given network interface and pin name. It reads
-// the PCI serial number via devlink, converts it to a DPLL clock-id, then queries the host dpll
-// binary (via nsenter) to look up the pin.
+// the PCI serial number via devlink, converts it to a DPLL clock-id, then queries the dpll CLI
+// given by dpllBin to look up the pin.
 func getDpllSmaPinID(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (string, error) {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, dpllBin string) (string, error) {
 	cmd := fmt.Sprintf(
 		`PCI=$(readlink /sys/class/net/%s/device | xargs basename) && `+
 			`SERIAL=$(devlink dev info pci/$PCI 2>/dev/null | awk '/serial_number/{print $NF}') && `+
 			`CLOCK_ID=$(printf '%%d' 0x$(echo $SERIAL | tr -d '-')) && `+
-			`nsenter -t 1 -m -n -- /usr/sbin/dpll pin id-get board-label %s clock-id $CLOCK_ID`,
-		ifaceName, pinName)
+			`%s pin id-get board-label %s clock-id $CLOCK_ID`,
+		ifaceName, dpllBin, pinName)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
 		ptpdaemon.WithRetries(3),
@@ -182,9 +384,9 @@ type dpllPinState struct {
 	parents []dpllParentDevice
 }
 
-// getDpllPinState runs "dpll pin show" on the host and parses the result.
-func getDpllPinState(client *clients.Settings, nodeName, pinID string) (dpllPinState, error) {
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin show id %s", pinID)
+// getDpllPinState runs "dpll pin show" through the given dpll CLI and parses the result.
+func getDpllPinState(client *clients.Settings, nodeName, pinID, dpllBin string) (dpllPinState, error) {
+	cmd := fmt.Sprintf("%s pin show id %s", dpllBin, pinID)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
 		ptpdaemon.WithRetryDelay(10*time.Second),
@@ -264,40 +466,56 @@ func parseParentDeviceLine(line string) dpllParentDevice {
 	return parent
 }
 
-// disconnectSmaViaDpll disables the SMA pin via the host DPLL CLI. For input pins it sets all
-// parents to prio=255 state=selectable (lowest priority, effectively disabled). For output pins it
-// sets all parents to state=disconnected.
-func disconnectSmaViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
+// resolveDpllPin resolves the DPLL pin ID for the given interface and pin name and reads its current state. It
+// returns an error when the pin has no parent devices, since every subsequent operation acts on the parents.
+func resolveDpllPin(
+	client *clients.Settings,
+	nodeName string,
+	ifaceName iface.Iface,
+	pinName, dpllBin string) (pinID string, state dpllPinState, err error) {
+	pinID, err = getDpllSmaPinID(client, nodeName, ifaceName, pinName, dpllBin)
+	if err != nil {
+		return "", dpllPinState{}, err
+	}
+
+	state, err = getDpllPinState(client, nodeName, pinID, dpllBin)
+	if err != nil {
+		return "", dpllPinState{}, err
+	}
+
+	if len(state.parents) == 0 {
+		return "", dpllPinState{}, fmt.Errorf(
+			"no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
+	}
+
+	return pinID, state, nil
+}
+
+// setSmaViaDpll applies parentArgs to every parent device of the SMA pin via the DPLL CLI, choosing inputArgs or
+// outputArgs based on the direction reported for the pin's parents.
+func setSmaViaDpll(
+	client *clients.Settings,
+	nodeName string,
+	ifaceName iface.Iface,
+	pinName, dpllBin, inputArgs, outputArgs string) error {
+	pinID, pinState, err := resolveDpllPin(client, nodeName, ifaceName, pinName, dpllBin)
 	if err != nil {
 		return err
 	}
 
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return err
-	}
-
-	if len(pinState.parents) == 0 {
-		return fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
+	parentArgs := inputArgs
+	if pinState.parents[0].direction == dpllDirectionOutput {
+		parentArgs = outputArgs
 	}
 
 	dpllArgs := fmt.Sprintf("id %s", pinID)
-
-	if pinState.parents[0].direction == dpllDirectionOutput {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s state disconnected", p.id)
-		}
-	} else {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s prio 255 state selectable", p.id)
-		}
+	for _, parent := range pinState.parents {
+		dpllArgs += fmt.Sprintf(" parent-device %s %s", parent.id, parentArgs)
 	}
 
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin set %s", dpllArgs)
+	cmd := fmt.Sprintf("%s pin set %s", dpllBin, dpllArgs)
 
-	klog.V(tsparams.LogLevel).Infof("DPLL disconnect %s: %s", pinName, cmd)
+	klog.V(tsparams.LogLevel).Infof("DPLL set %s: %s", pinName, cmd)
 
 	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
 		ptpdaemon.WithRetries(3),
@@ -307,68 +525,34 @@ func disconnectSmaViaDpll(
 	return err
 }
 
-// reconnectSmaViaDpll re-enables the SMA pin via the host DPLL CLI. For input pins it sets all
-// parents to prio=3 state=selectable; prio=3 is used as a conventional default matching the value
-// the PTP operator assigns to SMA input pins during initial configuration. For output pins it sets
-// all parents to state=connected. Note: the sysfs-format smaConfig string is not applicable to the
+// disconnectSmaViaDpll disables the SMA pin via the DPLL CLI. For input pins it sets all parents
+// to prio=255 state=selectable (lowest priority, effectively disabled). For output pins it sets
+// all parents to state=disconnected.
+func disconnectSmaViaDpll(
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, dpllBin string) error {
+	return setSmaViaDpll(
+		client, nodeName, ifaceName, pinName, dpllBin, "prio 255 state selectable", "state disconnected")
+}
+
+// reconnectSmaViaDpll re-enables the SMA pin via the DPLL CLI. For input pins it sets all parents
+// to prio=3 state=selectable; prio=3 is used as a conventional default matching the value the PTP
+// operator assigns to SMA input pins during initial configuration. For output pins it sets all
+// parents to state=connected. Note: the sysfs-format smaConfig string is not applicable to the
 // DPLL path and is intentionally not used here.
 func reconnectSmaViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
-	if err != nil {
-		return err
-	}
-
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return err
-	}
-
-	if len(pinState.parents) == 0 {
-		return fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
-	}
-
-	dpllArgs := fmt.Sprintf("id %s", pinID)
-
-	if pinState.parents[0].direction == dpllDirectionOutput {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s state connected", p.id)
-		}
-	} else {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s prio 3 state selectable", p.id)
-		}
-	}
-
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin set %s", dpllArgs)
-
-	klog.V(tsparams.LogLevel).Infof("DPLL reconnect %s: %s", pinName, cmd)
-
-	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
-		ptpdaemon.WithRetries(3),
-		ptpdaemon.WithRetryOnError(true),
-		ptpdaemon.WithRetryDelay(10*time.Second))
-
-	return err
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, dpllBin string) error {
+	return setSmaViaDpll(
+		client, nodeName, ifaceName, pinName, dpllBin, "prio 3 state selectable", "state connected")
 }
 
 // isSmaConnectedViaDpll returns true if the SMA pin is actively connected via the DPLL CLI. For
 // input pins, connected means at least one parent has prio < 255. For output pins, connected means
 // at least one parent has state=connected.
 func isSmaConnectedViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, dpllBin string) (bool, error) {
+	_, pinState, err := resolveDpllPin(client, nodeName, ifaceName, pinName, dpllBin)
 	if err != nil {
 		return false, err
-	}
-
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return false, err
-	}
-
-	if len(pinState.parents) == 0 {
-		return false, fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
 	}
 
 	if pinState.parents[0].direction == dpllDirectionOutput {
