@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
@@ -302,6 +303,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 				sriovNamespace, sriovOperatorgroup, sriovSubscription := collectingInfoSriovOperator()
 
+				DeferCleanup(func() {
+					restoreSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
+				})
+
 				By("Removing SR-IOV operator")
 				removeSriovOperator(sriovNamespace)
 				Expect(
@@ -312,7 +317,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
 				Eventually(func() error {
 					return sriovoperator.IsSriovDeployed(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
-				}, time.Minute, tsparams.RetryInterval).
+				}, tsparams.DefaultTimeout, tsparams.RetryInterval).
 					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
 				By("Verifying that VFs still exist after SR-IOV operator reinstallation")
@@ -458,4 +463,26 @@ func defineExternallyManagedIterationParams(ipFamily string) (clientIPs, serverI
 	return nil, nil, fmt.Errorf(
 		"ipStack parameter %s is invalid; allowed values are %s, %s, %s ",
 		ipFamily, ipv4Family, ipv6Family, dualIPFamily)
+}
+
+func restoreSriovOperator(sriovNamespace *namespace.Builder,
+	sriovOperatorGroup *olm.OperatorGroupBuilder,
+	sriovSubscription *olm.SubscriptionBuilder) {
+	By("Restoring SR-IOV operator if it is not fully deployed")
+
+	config, configErr := sriov.PullOperatorConfig(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
+	configOK := configErr == nil && config != nil && config.Object != nil &&
+		config.Object.GetDeletionTimestamp() == nil
+
+	if isSriovOperatorDeploymentReady(sriovNamespace.Definition.Name) &&
+		sriovoperator.IsSriovDeployed(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace) == nil &&
+		configOK {
+		return
+	}
+
+	installSriovOperator(sriovNamespace, sriovOperatorGroup, sriovSubscription)
+	Eventually(sriovoperator.IsSriovDeployed,
+		tsparams.DefaultTimeout, tsparams.RetryInterval).
+		WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
+		ShouldNot(HaveOccurred(), "SR-IOV operator was not restored")
 }
